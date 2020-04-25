@@ -156,7 +156,7 @@ class GalvaniNIWorker(threading.Thread):
                             for i in range(128):
                                 if self.gd.waveform_array[i] is not None:
                                     wf, offset = self.gd.waveform_array[i]
-                                    target_status[i] = wf.wf.get_sample(offset)
+                                    target_status[i] = wf.wf.get_sample((offset / self.COMMAND_RATE) % wf.wf.get_duration())
                                     if wf.n_pulses and offset + 1 >= self.COMMAND_RATE * wf.wf.get_duration() * wf.n_pulses:
                                         self.gd.waveform_array[i] = None
                                     else:
