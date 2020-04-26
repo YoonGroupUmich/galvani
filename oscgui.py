@@ -80,12 +80,12 @@ class ChannelCtrl:
         self.status_text.SetValue('Board not connected')
 
     def update_status(self, status):
-        if status is None:
-            self.status_text.SetBackgroundColour(wx.NullColour)
-            self.status_text.SetValue('Stopped')
-        else:
+        if status:
             self.status_text.SetBackgroundColour(self._normal_color)
             self.status_text.SetValue('Normal')
+        else:
+            self.status_text.SetBackgroundColour(wx.NullColour)
+            self.status_text.SetValue('Stopped')
 
     def on_toggle(self, event: wx.Event):
         obj = event.GetEventObject()
@@ -125,13 +125,14 @@ class ChannelCtrl:
 
     def on_trigger(self, event: wx.Event):
         wf = self.waveform_choice.GetSelection()
-        data = self.mf.wfm.waveform_panels[wf].channel_info()
         if self.continuous:
-            data.n_pulses = 0
-        self.mf.device.set_channel(self.ch, data)
+            data = self.mf.wfm.waveform_panels[wf].channel_info(n_pulses=0)
+        else:
+            data = self.mf.wfm.waveform_panels[wf].channel_info()
+        galvani.GalvaniDeviceSetChannel(self.mf.device, self.ch, data)
 
     def on_stop(self, event: wx.Event):
-        self.mf.device.set_channel(self.ch, None)
+        galvani.GalvaniDeviceSetChannel(self.mf.device, self.ch, galvani.ffi.NULL)
 
     def on_del(self, event: wx.Event):
         self.mf.Freeze()
@@ -214,9 +215,9 @@ class SquareWavePanel(wx.FlexGridSizer):
                 1 if self.rise_time < .3 else
                 2 if self.rise_time < .75 else 3 if self.rise_time < 1.5 else 4)
         return galvani.SquareWaveform(amp=self.amp,
-                                      pw=self.pulse_width / 1000,
+                                      pulse_width=self.pulse_width / 1000,
                                       period=self.period / 1000,
-                                      mode=mode)
+                                      rising_time=mode)
 
     def to_dict(self):
         return {'amp': self.amp, 'pulse_width': self.pulse_width,
@@ -366,9 +367,16 @@ class WaveFormPanel(wx.StaticBoxSizer):
         self.modify_callback(self.label)
         event.Skip()
 
-    def channel_info(self) -> galvani.ChannelInfo:
+    def channel_info(self, n_pulses=None):
         wf = self.detail.get_waveform()
-        return galvani.ChannelInfo(wf, n_pulses=self.num_of_pulses.GetValue())
+        if n_pulses is None:
+            n_pulses = self.num_of_pulses.GetValue()
+        if isinstance(wf, galvani.SquareWaveform):
+            return galvani.GetChannelInfoSquare(n_pulses, wf.rising_time, wf.amp, wf.pulse_width,
+                                                wf.period)
+        elif isinstance(wf, galvani.CustomWaveform):
+            wf_data = np.array(wf.data, dtype=np.uint8).tobytes()
+            return galvani.GetChannelInfoCustom(n_pulses, wf_data, len(wf_data))
 
     def to_dict(self) -> dict:
         ret = {'label': self.label,
@@ -391,7 +399,7 @@ class WaveFormPanel(wx.StaticBoxSizer):
                 ys = [0]
                 for i in range(n_pulses):
                     x_offset = xs[-1]
-                    rise_time = (0, 0.1, 0.5, 1, 2)[wf.mode]
+                    rise_time = wf.rising_time
                     xs.extend((x_offset + rise_time,
                                x_offset + wf.pulse_width * 1000 - rise_time,
                                x_offset + wf.pulse_width * 1000,
@@ -518,7 +526,6 @@ class MainFrame(wx.Frame):
         self.devices = {}
 
         self.board_relative_controls = []
-        self.waveform_array_lock = threading.RLock()
 
         p = wx.Panel(self, -1)
         self.p = p
@@ -717,7 +724,8 @@ class MainFrame(wx.Frame):
         chs = [x.ch for x in self.channels_ui if x.modified]
         if chs:
             if self.device is not None:
-                self.device.set_channel(chs, None)
+                for ch in chs:
+                    galvani.GalvaniDeviceSetChannel(self.device, ch, galvani.ffi.NULL)
             for x in self.channels_ui:
                 if x.modified:
                     x.update_param()
@@ -729,61 +737,15 @@ class MainFrame(wx.Frame):
             logging.getLogger('OSCGUI').info(
                 'Channels already up to date')
 
-    def gen_commands(self):
-        current_status = np.zeros(128, dtype='uint8')
-        c_ch = 0
-        with open('cmds.bin', 'wb') as fp:
-            fp.write(galvani.generate_cmd(0, 0, 18, 0, 0, 0, 0, 0))
-            fp.write(galvani.generate_cmd(0, 0, 18, 0, 0, 0, 0, 0))
-            fp.write(galvani.generate_cmd(0, 0, 18, 0, 0, 0, 0, 0))
-            max_duration = 0
-            wf_list = []
-            for x in self.channels_ui:
-                x.update_param()
-                wf = x.waveform_choice.GetSelection()
-                data = self.wfm.waveform_panels[wf].channel_info()
-                if data.n_pulses * data.wf.get_duration() > max_duration:
-                    max_duration = data.n_pulses * data.wf.get_duration()
-                wf_list.append(data)
-            for num in range(2 + int(max_duration * (500000 / 19))):
-                target_status = np.zeros(128, dtype='uint8')
-                t = num / (500000 / 19)
-                for ch, wf in enumerate(wf_list):
-                    if t < data.n_pulses * data.wf.get_duration():
-                        target_status[ch] = data.wf.get_sample(t % data.wf.get_duration())
-                if np.array_equal(current_status, target_status):
-                    fp.write(galvani.generate_cmd(1, 0, 0, c_ch, current_status[c_ch],
-                                                  current_status[c_ch + 32],
-                                                  current_status[c_ch + 64],
-                                                  current_status[c_ch + 96]))
-                    c_ch = (c_ch + 1) % 32
-                else:
-                    while (current_status[c_ch] == target_status[c_ch] and
-                           current_status[c_ch + 32] == target_status[
-                               c_ch + 32] and
-                           current_status[c_ch + 64] == target_status[
-                               c_ch + 64] and
-                           current_status[c_ch + 96] == target_status[
-                               c_ch + 96]):
-                        c_ch = (c_ch + 1) % 32
-                    fp.write(galvani.generate_cmd(1, 0, 0, c_ch, target_status[c_ch],
-                                                  target_status[c_ch + 32],
-                                                  target_status[c_ch + 64],
-                                                  target_status[c_ch + 96]))
-                    current_status[c_ch] = target_status[c_ch]
-                    current_status[c_ch + 32] = target_status[c_ch + 32]
-                    current_status[c_ch + 64] = target_status[c_ch + 64]
-                    current_status[c_ch + 96] = target_status[c_ch + 96]
-                    c_ch = (c_ch + 1) % 32
-
     def on_connect(self, connect=None):
         if connect is None:
             connect = self.connect_button.GetLabel() == 'Connect'
         if connect:
             if self.device is not None:
                 return
-            self.device = galvani.GalvaniDevice(self.device_choice.GetValue(), self.status_callback)
-            self.device.start()
+            device_name = self.device_choice.GetValue().encode()
+            self.device = galvani.GetGalvaniDevice(device_name, len(device_name))
+            galvani.StartGalvaniDevice(self.device)
             self.Freeze()
             for x in self.channels_ui:
                 x.set_modified()
@@ -801,7 +763,7 @@ class MainFrame(wx.Frame):
             if self.device is None:
                 return
             print('stopping signal recv1')
-            self.device.stop()
+            galvani.StopGalvaniDevice(self.device)
             print('stopping signal recv2')
             self.device = None
             print('stopping signal recv3')
@@ -818,20 +780,13 @@ class MainFrame(wx.Frame):
             logging.getLogger('OSCGUI').info('Disconnected')
             self.Thaw()
 
-    def status_callback(self, waveform_array):
-        with self.waveform_array_lock:
-            self.waveform_array = waveform_array
-        '''
+    def on_idle(self, event: wx.IdleEvent):
         if self.device is not None:
+            status_array = galvani.ffi.new('bool[128]')
+            galvani.GalvaniDeviceGetStatus(self.device, status_array)
             for x in self.channels_ui:
-                x.update_status(waveform_array[x.ch])
-        '''
-
-    def on_idle(self, event: wx.Event):
-        if self.device is not None:
-            with self.waveform_array_lock:
-                for x in self.channels_ui:
-                    x.update_status(self.waveform_array[x.ch])
+                x.update_status(status_array[x.ch])
+            event.RequestMore()
 
     def is_wf_using(self, waveform: str):
         for ch, x in enumerate(self.channels_ui):
@@ -908,7 +863,7 @@ class MainFrame(wx.Frame):
                 self.on_update(None)
             self.Thaw()
 
-    def add_channel(self, ch:int, name:str):
+    def add_channel(self, ch: int, name: str):
         channel_box = self.channel_box
         p = self.p
         channels_ui = self.channels_ui
@@ -991,7 +946,8 @@ class MainFrame(wx.Frame):
                     self.p.Layout()
                     self.Thaw()
                 else:
-                    logging.getLogger('OSCGUI').error('Add Channel failed, channel number out of range: %s', ch_dialog.GetValue())
+                    logging.getLogger('OSCGUI').error('Add Channel failed, channel number out of range: %s',
+                                                      ch_dialog.GetValue())
             except ValueError:
                 logging.getLogger('OSCGUI').error('Add Channel failed, not an integer: %s', ch_dialog.GetValue())
 

@@ -4,13 +4,13 @@ ffibuilder = FFI()
 # cdef() expects a single string declaring the C types, functions and
 # globals needed to use the shared object. It must be in valid C syntax.
 ffibuilder.cdef('''
-struct Galvani* galvani_init_ni(char* ni_device);
-void galvani_set_buffer_size(struct Galvani* dev, double buffer);
-double galvani_get_buffer_size(struct Galvani* dev);
-uint32_t galvani_get_buffer_size_samples(struct Galvani* dev);
-uint32_t galvani_get_buffer_samples(struct Galvani* dev);
-void galvani_send_command(struct Galvani* dev, char* command, int32_t command_count);
-void galvani_end(struct Galvani* dev);
+struct ChannelInfo* GetChannelInfoSquare(int64_t n_pulses, double rising_time, double amp, double pulse_width, double period);
+struct ChannelInfo* GetChannelInfoCustom(int64_t n_pulses, const char* wave, size_t wave_len);
+struct GalvaniDevice* GetGalvaniDevice(const char* dev_name, size_t dev_name_len);
+void StartGalvaniDevice(struct GalvaniDevice* gd);
+void StopGalvaniDevice(struct GalvaniDevice* gd);
+void GalvaniDeviceSetChannel(struct GalvaniDevice* gd, int channel, struct ChannelInfo* ci);
+void GalvaniDeviceGetStatus(struct GalvaniDevice* gd, bool buffer[128]);
 ''')
 
 # set_source() gives the name of the python extension module to
