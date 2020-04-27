@@ -129,15 +129,18 @@ struct Waveform {
 
 struct SquareWaveform :public Waveform {
 	double rising_time;
+	double falling_time;
 	double amp;
 	double pulse_width;
 	double period;
-	SquareWaveform(double rising_time, double amp, double pulse_width, double period) :rising_time(rising_time), amp(amp), pulse_width(pulse_width), period(period) {}
+	SquareWaveform(double rising_time, double amp, double pulse_width, double period, double falling_time) :rising_time(rising_time), amp(amp), pulse_width(pulse_width), period(period), falling_time(falling_time) {}
 	double getDuration() override final { return period; }
 	uint8_t getSample(double time) override final {
 		assert(time < period);
-		if (time < pulse_width)
-			return uint8_t(amp);
+		if (time < pulse_width) {
+			double amplitude = amp * std::min({ 1., time / rising_time, (pulse_width - time) / falling_time });
+			return uint8_t(amplitude);
+		}
 		else
 			return 0;
 	}
@@ -159,8 +162,8 @@ struct ChannelInfo {
 	ChannelInfo(int64_t n_pulses, Waveform* wf) :n_pulses(n_pulses), wf(wf) {}
 };
 
-struct ChannelInfo* GetChannelInfoSquare(int64_t n_pulses, double rising_time, double amp, double pulse_width, double period) {
-	return new ChannelInfo(n_pulses, new SquareWaveform(rising_time, amp, pulse_width, period));
+struct ChannelInfo* GetChannelInfoSquare(int64_t n_pulses, double rising_time, double amp, double pulse_width, double period, double falling_time) {
+	return new ChannelInfo(n_pulses, new SquareWaveform(rising_time, amp, pulse_width, period, falling_time));
 }
 struct ChannelInfo* GetChannelInfoCustom(int64_t n_pulses, const char* wave, size_t wave_len) {
 	return new ChannelInfo(n_pulses, new CustomWaveform(wave, wave_len));

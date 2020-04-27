@@ -6,17 +6,13 @@ import logging
 import matplotlib.pyplot as plt
 import os
 import sys
-import threading
 import time
 from typing import List
 import wx
 import wx.lib.scrolledpanel
 import numpy as np
-import subprocess
 
 import galvani
-
-import struct
 
 __version__ = '0.0.1'
 
@@ -154,13 +150,14 @@ class ChannelCtrl:
 
 class SquareWavePanel(wx.FlexGridSizer):
     def __init__(self, parent, modify_callback, init_dict=None):
-        wx.FlexGridSizer.__init__(self, 2, 4, 5, 5)
-        for i in range(4):
+        wx.FlexGridSizer.__init__(self, 2, 5, 5, 5)
+        for i in range(5):
             self.AddGrowableCol(i, 1)
         self.Add(wx.StaticText(parent, -1, 'Amplitude (\u03bcA)'), 0, wx.EXPAND)
         self.Add(wx.StaticText(parent, -1, 'Period (ms)'), 0, wx.EXPAND)
         self.Add(wx.StaticText(parent, -1, 'Pulse Width (ms)'), 0, wx.EXPAND)
-        self.Add(wx.StaticText(parent, -1, 'Rise Time (ms)'), 0, wx.EXPAND)
+        self.Add(wx.StaticText(parent, -1, 'Rising Time (ms)'), 0, wx.EXPAND)
+        self.Add(wx.StaticText(parent, -1, 'Falling Time (ms)'), 0, wx.EXPAND)
 
         try:
             self.amp = init_dict['amp']
@@ -178,6 +175,10 @@ class SquareWavePanel(wx.FlexGridSizer):
             self.rise_time = init_dict['rise_time']
         except (TypeError, KeyError, ValueError):
             self.rise_time = 0  # ms
+        try:
+            self.fall_time = init_dict['fall_time']
+        except (TypeError, KeyError, ValueError):
+            self.fall_time = 0  # ms
 
         self.amp_text = wx.TextCtrl(parent, -1, '%d' % self.amp,
                                     style=wx.TE_PROCESS_ENTER)
@@ -186,42 +187,47 @@ class SquareWavePanel(wx.FlexGridSizer):
         self.amp_text.Bind(wx.EVT_KILL_FOCUS, self.on_amp)
         self.amp_text.Bind(wx.EVT_TEXT_ENTER, self.on_amp)
         self.Add(self.amp_text, 0, wx.EXPAND)
-        self.period_text = wx.TextCtrl(parent, -1, '%d' % self.period,
+        self.period_text = wx.TextCtrl(parent, -1, '%.2f' % self.period,
                                        style=wx.TE_PROCESS_ENTER)
         self.period_text.SetToolTip(
-            'Precision: \u00b11ms')
+            'Precision: \u00b10.08ms')
         self.period_text.Bind(wx.EVT_KILL_FOCUS, self.on_period)
         self.period_text.Bind(wx.EVT_TEXT_ENTER, self.on_period)
         self.Add(self.period_text, 0, wx.EXPAND)
-        self.pw_text = wx.TextCtrl(parent, -1, '%d' % self.pulse_width,
+        self.pw_text = wx.TextCtrl(parent, -1, '%.2f' % self.pulse_width,
                                    style=wx.TE_PROCESS_ENTER)
         self.pw_text.SetToolTip(
-            'Range: 0~period, Precision: \u00b11ms')
+            'Range: 0~period, Precision: \u00b10.08ms')
         self.pw_text.Bind(wx.EVT_KILL_FOCUS, self.on_pulse_width)
         self.pw_text.Bind(wx.EVT_TEXT_ENTER, self.on_pulse_width)
         self.Add(self.pw_text, 0, wx.EXPAND)
-        self.rise_time_text = wx.TextCtrl(parent, -1, str(self.rise_time),
+        self.rise_time_text = wx.TextCtrl(parent, -1, '%.2f' % self.rise_time,
                                           style=wx.TE_PROCESS_ENTER)
         self.rise_time_text.SetToolTip(
-            'Possible values: 0')
+            'Precision: \u00b10.08ms')
         self.rise_time_text.Bind(wx.EVT_KILL_FOCUS, self.on_rise_time)
         self.rise_time_text.Bind(wx.EVT_TEXT_ENTER, self.on_rise_time)
         self.Add(self.rise_time_text, 0, wx.EXPAND)
+        self.fall_time_text = wx.TextCtrl(parent, -1, '%.2f' % self.fall_time,
+                                          style=wx.TE_PROCESS_ENTER)
+        self.fall_time_text.SetToolTip(
+            'Precision: \u00b10.08ms')
+        self.fall_time_text.Bind(wx.EVT_KILL_FOCUS, self.on_fall_time)
+        self.fall_time_text.Bind(wx.EVT_TEXT_ENTER, self.on_fall_time)
+        self.Add(self.fall_time_text, 0, wx.EXPAND)
 
         self.modify_callback = modify_callback
 
     def get_waveform(self) -> galvani.SquareWaveform:
-        mode = (0 if self.rise_time < .05 else
-                1 if self.rise_time < .3 else
-                2 if self.rise_time < .75 else 3 if self.rise_time < 1.5 else 4)
         return galvani.SquareWaveform(amp=self.amp,
                                       pulse_width=self.pulse_width / 1000,
                                       period=self.period / 1000,
-                                      rising_time=mode)
+                                      rising_time=self.rise_time,
+                                      falling_time=self.fall_time)
 
     def to_dict(self):
         return {'amp': self.amp, 'pulse_width': self.pulse_width,
-                'period': self.period, 'rise_time': self.rise_time}
+                'period': self.period, 'rise_time': self.rise_time, 'fall_time': self.fall_time}
 
     def on_amp(self, event: wx.Event):
         try:
@@ -246,48 +252,56 @@ class SquareWavePanel(wx.FlexGridSizer):
             return
         if val > self.period:
             val = self.period
-        val = round(val) if val > 0 else 0
+        val = round(val,2) if val > 0 else 0
         if self.pulse_width != val:
             self.pulse_width = val
             self.modify_callback()
-        self.pw_text.SetValue('%d' % self.pulse_width)
+        self.pw_text.SetValue('%.2f' % self.pulse_width)
         event.Skip()
 
     def on_period(self, event: wx.Event):
         try:
             val = float(self.period_text.GetValue())
         except ValueError:
-            self.period_text.SetValue(str(self.period))
+            self.period_text.SetValue('%.2f' % self.period)
             event.Skip()
             return
-        val = round(val) if val > 0 else 0
+        val = round(val,2) if val > 0 else 0
         if self.period != val:
             self.period = val
             if val < self.pulse_width:
                 self.pulse_width = val
-                self.pw_text.SetValue('%d' % self.pulse_width)
+                self.pw_text.SetValue('%.2f' % self.pulse_width)
             self.modify_callback()
-        self.period_text.SetValue('%d' % self.period)
+        self.period_text.SetValue('%.2f' % self.period)
         event.Skip()
 
     def on_rise_time(self, event: wx.Event):
-        '''
         try:
             val = float(self.rise_time_text.GetValue())
         except ValueError:
-            self.rise_time_text.SetValue(str(self.rise_time))
+            self.rise_time_text.SetValue('%.2f' % self.rise_time)
             event.Skip()
             return
-        val = (0 if val < .05 else
-               .1 if val < .3 else
-               .5 if val < .75 else 1 if val < 1.5 else 2)
+        val = round(val,2) if val > 0 else 0
         if self.rise_time != val:
             self.rise_time = val
             self.modify_callback()
-        self.rise_time_text.SetValue(str(self.rise_time))
+        self.rise_time_text.SetValue('%.2f' % self.rise_time)
         event.Skip()
-        '''
-        self.rise_time_text.SetValue('0')
+
+    def on_fall_time(self, event: wx.Event):
+        try:
+            val = float(self.fall_time_text.GetValue())
+        except ValueError:
+            self.fall_time_text.SetValue('%.2f' % self.fall_time)
+            event.Skip()
+            return
+        val = round(val,2) if val > 0 else 0
+        if self.fall_time != val:
+            self.fall_time = val
+            self.modify_callback()
+        self.fall_time_text.SetValue('%.2f' % self.fall_time)
         event.Skip()
 
 
@@ -373,7 +387,7 @@ class WaveFormPanel(wx.StaticBoxSizer):
             n_pulses = self.num_of_pulses.GetValue()
         if isinstance(wf, galvani.SquareWaveform):
             return galvani.GetChannelInfoSquare(n_pulses, wf.rising_time, wf.amp, wf.pulse_width,
-                                                wf.period)
+                                                wf.period, wf.falling_time)
         elif isinstance(wf, galvani.CustomWaveform):
             wf_data = np.array(wf.data, dtype=np.uint8).tobytes()
             return galvani.GetChannelInfoCustom(n_pulses, wf_data, len(wf_data))
@@ -406,8 +420,14 @@ class WaveFormPanel(wx.StaticBoxSizer):
                                x_offset + wf.period * 1000))
                     ys.extend((wf.amp, wf.amp, 0, 0))
         elif isinstance(wf, galvani.CustomWaveform):
-            xs = range(len(wf.wave))
-            ys = wf.wave
+            if not wf.wave:
+                wx.MessageBox(
+                    'Error: invalid custom waveform.',
+                    'Preview for ' + self.label)
+                return
+            else:
+                xs = range(len(wf.wave))
+                ys = wf.wave
         else:
             raise TypeError('Waveform type not supported')
         plt.figure(num='Preview for ' + self.label)
@@ -560,7 +580,7 @@ class MainFrame(wx.Frame):
             (save_config_button, load_config_button))
 
         left_box.Add(config_sizer, wx.SizerFlags().Expand())
-        left_box.AddSpacer(50)
+        left_box.AddSpacer(30)
 
         self.wfm = WaveformManager(p, self)
         left_box.Add(self.wfm, 1, wx.EXPAND)
@@ -626,7 +646,7 @@ class MainFrame(wx.Frame):
         add_channel.Bind(wx.EVT_BUTTON, self.on_add_channel)
         extra_buttons.Add(add_channel)
 
-        right_box.Add(extra_buttons, 0, wx.EXPAND | wx.BOTTOM, 50)
+        right_box.Add(extra_buttons, 0, wx.EXPAND | wx.BOTTOM, 20)
 
         log_text = wx.TextCtrl(p, -1, style=wx.TE_MULTILINE | wx.TE_READONLY)
         self.log_sh = logging.StreamHandler(log_text)
@@ -667,7 +687,7 @@ class MainFrame(wx.Frame):
 
         box = wx.BoxSizer(wx.HORIZONTAL)
         box.Add(left_box, 0, wx.EXPAND | wx.ALL, 5)
-        box.AddSpacer(50)
+        box.AddSpacer(20)
         box.Add(right_box, 1, wx.EXPAND | wx.ALL, 5)
 
         for x in self.board_relative_controls:

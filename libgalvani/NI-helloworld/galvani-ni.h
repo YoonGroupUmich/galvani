@@ -17,7 +17,7 @@ extern "C" {
 struct ChannelInfo;
 struct GalvaniDevice;
 
-GALVANI_API struct ChannelInfo* GetChannelInfoSquare(int64_t n_pulses, double rising_time, double amp, double pulse_width, double period);
+GALVANI_API struct ChannelInfo* GetChannelInfoSquare(int64_t n_pulses, double rising_time, double amp, double pulse_width, double period, double falling_time);
 GALVANI_API struct ChannelInfo* GetChannelInfoCustom(int64_t n_pulses, const char* wave, size_t wave_len);
 GALVANI_API struct GalvaniDevice* GetGalvaniDevice(const char* dev_name, size_t dev_name_len);
 GALVANI_API void StartGalvaniDevice(struct GalvaniDevice* gd);
