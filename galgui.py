@@ -50,12 +50,7 @@ class ChannelCtrl:
         self.trigger_button = trigger_button
         trigger_button.Bind(wx.EVT_BUTTON, self.on_trigger)
         self.stop_button = stop_button
-        if oscgui_config['OSCGUI']['channel_auto_enable'] == 'yes':
-            self.stop_button.Bind(wx.EVT_BUTTON, self.on_stop)
-        else:
-            self.stop_button.Bind(wx.EVT_BUTTON,
-                                  lambda evt: mf.device.set_enable(
-                                      ch, stop_button.GetLabel() == 'Enable'))
+        self.stop_button.Bind(wx.EVT_BUTTON, self.on_stop)
         self.status_text = status_text
 
         self.waveform = 'Waveform 1'
@@ -592,15 +587,10 @@ class MainFrame(wx.Frame):
         channel_box.Add(wx.StaticText(p, -1, 'Waveform'), 0, wx.ALIGN_CENTER)
         channel_box.Add(wx.StaticText(p, -1, 'Mode'), 0,
                         wx.ALIGN_CENTER)
-        if oscgui_config['OSCGUI']['channel_auto_enable'] == 'yes':
-            channel_box.Add(wx.StaticText(p, -1, 'Trigger'), 0,
-                            wx.ALIGN_CENTER)
-            channel_box.Add(wx.StaticText(p, -1, 'Stop'), 0,
-                            wx.ALIGN_CENTER)
-        else:
-            channel_box.AddSpacer(0)
-            channel_box.Add(wx.StaticText(p, -1, 'Trigger'), 0,
-                            wx.ALIGN_CENTER)
+        channel_box.Add(wx.StaticText(p, -1, 'Trigger'), 0,
+                        wx.ALIGN_CENTER)
+        channel_box.Add(wx.StaticText(p, -1, 'Stop'), 0,
+                        wx.ALIGN_CENTER)
         channel_box.Add(wx.StaticText(p, -1, 'Status'), 0, wx.ALIGN_CENTER)
         channel_box.Add(wx.StaticText(p, -1, 'Del'), 0, wx.ALIGN_CENTER)
         channels_ui = []
@@ -625,17 +615,6 @@ class MainFrame(wx.Frame):
             extra_buttons.Add(update_all)
             self.board_relative_controls.append(update_all)
 
-        if oscgui_config['OSCGUI']['channel_auto_enable'] != 'yes':
-            enable_all = wx.Button(p, -1, 'Enable All')
-            enable_all.Bind(wx.EVT_BUTTON,
-                            lambda _: self.device.set_enable(range(12), True))
-            extra_buttons.Add(enable_all)
-            disable_all = wx.Button(p, -1, 'Disable All')
-            disable_all.Bind(wx.EVT_BUTTON,
-                             lambda _: self.device.set_enable(range(12), False))
-            extra_buttons.Add(disable_all)
-            self.board_relative_controls.extend((enable_all, disable_all))
-
         trigger_all = wx.Button(p, -1, 'Trigger All')
         trigger_all.Bind(wx.EVT_BUTTON,
                          lambda _: [x.on_trigger(None) for x in self.channels_ui])
@@ -650,7 +629,7 @@ class MainFrame(wx.Frame):
 
         log_text = wx.TextCtrl(p, -1, style=wx.TE_MULTILINE | wx.TE_READONLY)
         self.log_sh = logging.StreamHandler(log_text)
-        self.log_sh.setLevel(logging.DEBUG if oscgui_config['OSCGUI']['verbose_log'] == 'yes' else logging.INFO)
+        self.log_sh.setLevel(logging.DEBUG if oscgui_config['GalGUI']['verbose_log'] == 'yes' else logging.INFO)
         self.formatter = logging.Formatter(
             '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
         self.log_sh.setFormatter(self.formatter)
@@ -666,16 +645,16 @@ class MainFrame(wx.Frame):
         save_log_checkbox = wx.CheckBox(p, -1, 'Save log to file')
         save_log_checkbox.Bind(wx.EVT_CHECKBOX, self.on_save_log)
 
-        if oscgui_config['OSCGUI']['save_log_to_file'] == 'yes':
+        if oscgui_config['GalGUI']['save_log_to_file'] == 'yes':
             save_log_checkbox.SetValue(True)
             self.log_fh = logging.FileHandler(
                 time.strftime('oscgui-%Y%m%d.log'), delay=True)
-            self.log_fh.setLevel(logging.DEBUG if oscgui_config['OSCGUI']['verbose_log'] == 'yes' else logging.INFO)
+            self.log_fh.setLevel(logging.DEBUG if oscgui_config['GalGUI']['verbose_log'] == 'yes' else logging.INFO)
             self.log_fh.setFormatter(self.formatter)
             logging.getLogger().addHandler(self.log_fh)
         else:
             self.log_fh = None
-        verbose_log_checkbox.SetValue(oscgui_config['OSCGUI']['verbose_log'] == 'yes')
+        verbose_log_checkbox.SetValue(oscgui_config['GalGUI']['verbose_log'] == 'yes')
 
         clear_log_button = wx.Button(p, -1, 'Clear Log')
         clear_log_button.Bind(wx.EVT_BUTTON, lambda _: log_text.Clear())
@@ -702,7 +681,7 @@ class MainFrame(wx.Frame):
         obj = event.GetEventObject()
         assert isinstance(obj, wx.CheckBox)
         if obj.GetValue():
-            oscgui_config['OSCGUI']['save_log_to_file'] = 'yes'
+            oscgui_config['GalGUI']['save_log_to_file'] = 'yes'
             with open('config.ini', 'w') as fp:
                 oscgui_config.write(fp)
             if self.log_fh is None:
@@ -713,7 +692,7 @@ class MainFrame(wx.Frame):
                 logging.getLogger().addHandler(self.log_fh)
 
         else:
-            oscgui_config['OSCGUI']['save_log_to_file'] = 'no'
+            oscgui_config['GalGUI']['save_log_to_file'] = 'no'
             with open('config.ini', 'w') as fp:
                 oscgui_config.write(fp)
             if self.log_fh:
@@ -725,7 +704,7 @@ class MainFrame(wx.Frame):
         obj = event.GetEventObject()
         assert isinstance(obj, wx.CheckBox)
         if obj.GetValue():
-            oscgui_config['OSCGUI']['verbose_log'] = 'yes'
+            oscgui_config['GalGUI']['verbose_log'] = 'yes'
             with open('config.ini', 'w') as fp:
                 oscgui_config.write(fp)
             self.log_sh.setLevel(logging.DEBUG)
@@ -733,7 +712,7 @@ class MainFrame(wx.Frame):
                 self.log_fh.setLevel(logging.DEBUG)
 
         else:
-            oscgui_config['OSCGUI']['verbose_log'] = 'no'
+            oscgui_config['GalGUI']['verbose_log'] = 'no'
             with open('config.ini', 'w') as fp:
                 oscgui_config.write(fp)
             self.log_sh.setLevel(logging.INFO)
@@ -750,11 +729,11 @@ class MainFrame(wx.Frame):
                 if x.modified:
                     x.update_param()
             if oscgui_config['Waveform']['realtime_update'] != 'yes':
-                logging.getLogger('OSCGUI').info(
+                logging.getLogger('GalGUI').info(
                     'Waveform updated: %s',
                     ', '.join(self.channels_ui[ch].channel_name for ch in chs))
         elif oscgui_config['Waveform']['realtime_update'] != 'yes':
-            logging.getLogger('OSCGUI').info(
+            logging.getLogger('GalGUI').info(
                 'Channels already up to date')
 
     def on_connect(self, connect=None):
@@ -774,7 +753,7 @@ class MainFrame(wx.Frame):
             self.connect_button.SetLabel('Disconnect')
             for x in self.board_relative_controls:
                 x.Enable()
-            logging.getLogger('OSCGUI').info('Connected')
+            logging.getLogger('GalGUI').info('Connected')
             if oscgui_config['Waveform']['realtime_update'] == 'yes':
                 self.on_update(None)
             self.Thaw()
@@ -797,7 +776,7 @@ class MainFrame(wx.Frame):
                 x.on_disconnect()
             for x in self.board_relative_controls:
                 x.Disable()
-            logging.getLogger('OSCGUI').info('Disconnected')
+            logging.getLogger('GalGUI').info('Disconnected')
             self.Thaw()
 
     def on_idle(self, event: wx.IdleEvent):
@@ -853,10 +832,10 @@ class MainFrame(wx.Frame):
                               'channels': [x.to_dict()
                                            for x in self.channels_ui]}
                     json.dump(config, fp)
-                    logging.getLogger('OSCGUI').info(
+                    logging.getLogger('GalGUI').info(
                         'Saved config file to ' + pathname)
             except IOError:
-                logging.getLogger('OSCGUI').warning(
+                logging.getLogger('GalGUI').warning(
                     'Failed to save config file')
 
     def on_load_config(self, event: wx.Event):
@@ -877,7 +856,7 @@ class MainFrame(wx.Frame):
                 for x, y in zip(self.channels_ui, config['channels']):
                     x.from_dict(y)
             except (IOError, ValueError, KeyError, AssertionError) as e:
-                logging.getLogger('OSCGUI').error(
+                logging.getLogger('GalGUI').error(
                     'Failed to load config file: ' + str(e))
             if oscgui_config['Waveform']['realtime_update'] == 'yes':
                 self.on_update(None)
@@ -906,25 +885,17 @@ class MainFrame(wx.Frame):
         channel_box.Add(wrap_box, 0, wx.EXPAND)
         sizers.append(wrap_box)
 
-        if oscgui_config['OSCGUI']['channel_auto_enable'] != 'yes':
-            stop_button = wx.Button(p, -1, 'Enable', style=wx.BU_EXACTFIT)
-            wrap_box = wx.BoxSizer(wx.HORIZONTAL)
-            wrap_box.Add(stop_button, 1, wx.ALIGN_CENTER_VERTICAL)
-            channel_box.Add(wrap_box, 0, wx.EXPAND)
-            sizers.append(wrap_box)
-
         trigger_button = wx.Button(p, -1, 'Trigger', style=wx.BU_EXACTFIT)
         wrap_box = wx.BoxSizer(wx.HORIZONTAL)
         wrap_box.Add(trigger_button, 1, wx.ALIGN_CENTER_VERTICAL)
         channel_box.Add(wrap_box, 0, wx.EXPAND)
         sizers.append(wrap_box)
 
-        if oscgui_config['OSCGUI']['channel_auto_enable'] == 'yes':
-            stop_button = wx.Button(p, -1, 'Stop', style=wx.BU_EXACTFIT)
-            wrap_box = wx.BoxSizer(wx.HORIZONTAL)
-            wrap_box.Add(stop_button, 1, wx.ALIGN_CENTER_VERTICAL)
-            channel_box.Add(wrap_box, 0, wx.EXPAND)
-            sizers.append(wrap_box)
+        stop_button = wx.Button(p, -1, 'Stop', style=wx.BU_EXACTFIT)
+        wrap_box = wx.BoxSizer(wx.HORIZONTAL)
+        wrap_box.Add(stop_button, 1, wx.ALIGN_CENTER_VERTICAL)
+        channel_box.Add(wrap_box, 0, wx.EXPAND)
+        sizers.append(wrap_box)
 
         status_text = wx.TextCtrl(p, -1, 'Board not connected',
                                   style=wx.TE_READONLY)
@@ -958,7 +929,7 @@ class MainFrame(wx.Frame):
                 if 0 <= ch < 128:
                     for x in self.channels_ui:
                         if ch == x.ch:
-                            logging.getLogger('OSCGUI').error('Add Channel failed, channel existed: %s',
+                            logging.getLogger('GalGUI').error('Add Channel failed, channel existed: %s',
                                                               ch_dialog.GetValue())
                             return
                     self.Freeze()
@@ -966,25 +937,13 @@ class MainFrame(wx.Frame):
                     self.p.Layout()
                     self.Thaw()
                 else:
-                    logging.getLogger('OSCGUI').error('Add Channel failed, channel number out of range: %s',
+                    logging.getLogger('GalGUI').error('Add Channel failed, channel number out of range: %s',
                                                       ch_dialog.GetValue())
             except ValueError:
-                logging.getLogger('OSCGUI').error('Add Channel failed, not an integer: %s', ch_dialog.GetValue())
+                logging.getLogger('GalGUI').error('Add Channel failed, not an integer: %s', ch_dialog.GetValue())
 
 
 if __name__ == '__main__':
     app = wx.App()
-    if oscgui_config['OSCGUI']['warning_on_startup'] == 'yes':
-        dlg = wx.RichMessageDialog(
-            None,
-            'Do not turn off the power on board before clicking the Disconnect '
-            'button.\nOtherwise it will damage the uLED.', 'CAUTION',
-            style=wx.OK | wx.CENTRE | wx.ICON_EXCLAMATION)
-        dlg.ShowCheckBox("Don't show again")
-        dlg.ShowModal()
-        if dlg.IsCheckBoxChecked():
-            oscgui_config['OSCGUI']['warning_on_startup'] = 'no'
-            with open('config.ini', 'w') as fp:
-                oscgui_config.write(fp)
     MainFrame().Show()
     sys.exit(app.MainLoop())
