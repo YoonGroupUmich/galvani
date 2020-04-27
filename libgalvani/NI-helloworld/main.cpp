@@ -1,4 +1,4 @@
-#define SAMPLES_PER_SEC (500000. / 19.)
+#define SAMPLES_PER_SEC (8000000. / 19.)
 #define DELAY 0.1
 
 #include "galvani-ni.h"

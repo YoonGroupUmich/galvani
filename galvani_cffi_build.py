@@ -17,8 +17,8 @@ void GalvaniDeviceGetStatus(struct GalvaniDevice* gd, bool buffer[128]);
 # produce, and some C source code as a string.  This C code needs
 # to make the declarated functions, types and globals available,
 # so it is often just the "#include".
-ffibuilder.set_source("_galvanini", '#include "galvani-ni.h"',
-     libraries=['libgalvani-ni'])   # library name, for the linker
+ffibuilder.set_source("_galvanini", '#include "libgalvani/NI-helloworld/galvani-ni.h"',
+     libraries=['libgalvani/Release/libgalvani-ni'])   # library name, for the linker
 
 if __name__ == "__main__":
     ffibuilder.compile(verbose=True)
