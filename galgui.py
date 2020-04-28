@@ -440,12 +440,20 @@ class WaveFormPanel(wx.StaticBoxSizer):
                 ys = [0]
                 for i in range(n_pulses):
                     x_offset = xs[-1]
-                    rise_time = wf.rising_time
-                    xs.extend((x_offset + rise_time,
-                               x_offset + wf.pulse_width * 1000 - rise_time,
-                               x_offset + wf.pulse_width * 1000,
-                               x_offset + wf.period * 1000))
-                    ys.extend((wf.amp, wf.amp, 0, 0))
+                    if wf.pulse_width == 0:
+                        xs.append(x_offset + wf.period * 1000)
+                        ys.append(0)
+                    elif wf.rising_time + wf.falling_time < wf.pulse_width:
+                        xs.extend((x_offset + wf.rising_time * 1000,
+                                   x_offset + (wf.pulse_width - wf.falling_time) * 1000,
+                                   x_offset + wf.pulse_width * 1000,
+                                   x_offset + wf.period * 1000))
+                        ys.extend((wf.amp, wf.amp, 0, 0))
+                    else:
+                        xs.extend((x_offset + wf.rising_time * wf.pulse_width / (wf.rising_time + wf.falling_time) * 1000,
+                                   x_offset + wf.pulse_width * 1000,
+                                   x_offset + wf.period * 1000))
+                        ys.extend((wf.amp * wf.pulse_width / (wf.rising_time + wf.falling_time), 0, 0))
         elif isinstance(wf, galvani.CustomWaveform):
             if not wf.wave:
                 wx.MessageBox(
@@ -453,8 +461,8 @@ class WaveFormPanel(wx.StaticBoxSizer):
                     'Preview for ' + self.label)
                 return
             else:
-                xs = np.arange(len(wf.wave)) / wf.sample_rate * 1000
-                ys = wf.wave
+                xs = np.arange(len(wf.wave) * n_pulses) / wf.sample_rate * 1000
+                ys = wf.wave * n_pulses
         else:
             raise TypeError('Waveform type not supported')
         plt.figure(num='Preview for ' + self.label)
