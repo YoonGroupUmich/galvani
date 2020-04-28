@@ -826,20 +826,13 @@ class MainFrame(wx.Frame):
                 self.on_update(None)
             self.Thaw()
         else:
-            print('stopping signal recv')
             if self.device is None:
                 return
-            print('stopping signal recv1')
             galvani.StopGalvaniDevice(self.device)
-            print('stopping signal recv2')
             self.device = None
-            print('stopping signal recv3')
             self.Freeze()
-            print('stopping signal recv4')
             self.device_choice.Enable()
-            print('stopping signal recv5')
             self.connect_button.SetLabel('Connect')
-            print('stopping signal recv6')
             for x in self.channels_ui:
                 x.on_disconnect()
             for x in self.board_relative_controls:

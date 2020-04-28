@@ -69,7 +69,6 @@ void galvani_set_buffer_size(struct Galvani* dev, double buffer) {
 	} \
 }
 	dev->buffer_size = std::max(1000, 8 * int(buffer * SAMPLES_PER_SEC));
-	printf("dev->buffer_size = %u\n", dev->buffer_size);
 	DAQmxErrChk(DAQmxCfgOutputBuffer(dev->taskHandle, dev->buffer_size));
 	DAQmxErrChk(DAQmxTaskControl(dev->taskHandle, DAQmx_Val_Task_Reserve));
 	DAQmxErrChk(DAQmxGetWriteSpaceAvail(dev->taskHandle, (uInt32*)&dev->buffer_size));
@@ -100,7 +99,6 @@ uint32_t galvani_get_buffer_samples(struct Galvani* dev) {
 }
 	uInt32 avail;
 	DAQmxErrChk(DAQmxGetWriteSpaceAvail(dev->taskHandle, &avail));
-	printf("curr = %u, avail = %u\n", dev->buffer_size - avail, avail);
 	return dev->buffer_size - avail;
 #undef DAQmxErrChk
 }
@@ -281,7 +279,6 @@ void galvaniNIWorker(struct GalvaniDevice* gd) {
 				}
 			}
 			if (!command_buffer.empty()) {
-				printf("sending commands: len=%d\n", command_buffer.size());
 				galvani_send_command(dev.get(), reinterpret_cast<char*>(command_buffer.data()), command_buffer.size());
 			}
 			else {
