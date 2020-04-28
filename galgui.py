@@ -837,7 +837,12 @@ class MainFrame(wx.Frame):
     def on_idle(self, event: wx.IdleEvent):
         if self.device is not None:
             status_array = galvani.ffi.new('bool[128]')
-            galvani.GalvaniDeviceGetStatus(self.device, status_array)
+            error = galvani.GalvaniDeviceGetStatus(self.device, status_array)
+            if error:
+                logging.getLogger('GalGUI').error('Unexpected error. Check DAQerr.txt for more info.')
+                self.on_connect(False)
+                event.RequestMore()
+                return
             for x in self.channels_ui:
                 x.update_status(status_array[x.ch])
             event.RequestMore()

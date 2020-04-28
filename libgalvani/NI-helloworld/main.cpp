@@ -28,9 +28,11 @@ struct Galvani* galvani_init_ni(const char* ni_device) {
 	int error; \
 	if(DAQmxFailed(error=(functionCall))) { \
 		DAQmxGetExtendedErrorInfo(err_message, 2048); \
-		fputs("DAQmx Error: ", stderr); \
-		fputs(err_message, stderr); \
-		fputs("\n", stderr); \
+		FILE *fp = fopen("DAQerr.txt", "a"); \
+		fputs("DAQmx Error: ", fp); \
+		fputs(err_message, fp); \
+		fputs("\n", fp); \
+		fclose(fp); \
 		return NULL; \
 	} \
 }
@@ -58,9 +60,11 @@ void galvani_set_buffer_size(struct Galvani* dev, double buffer) {
 	int error; \
 	if(DAQmxFailed(error=(functionCall))) { \
 		DAQmxGetExtendedErrorInfo(err_message, 2048); \
-		fputs("DAQmx Error: ", stderr); \
-		fputs(err_message, stderr); \
-		fputs("\n", stderr); \
+		FILE *fp = fopen("DAQerr.txt", "a"); \
+		fputs("DAQmx Error: ", fp); \
+		fputs(err_message, fp); \
+		fputs("\n", fp); \
+		fclose(fp); \
 		return; \
 	} \
 }
@@ -86,10 +90,12 @@ uint32_t galvani_get_buffer_samples(struct Galvani* dev) {
 	if(DAQmxFailed(error=(functionCall))) { \
 		char err_message[2048]; \
 		DAQmxGetExtendedErrorInfo(err_message, 2048); \
-		fputs("DAQmx Error: ", stderr); \
-		fputs(err_message, stderr); \
-		fputs("\n", stderr); \
-		return 0; \
+		FILE *fp = fopen("DAQerr.txt", "a"); \
+		fputs("DAQmx Error: ", fp); \
+		fputs(err_message, fp); \
+		fputs("\n", fp); \
+		fclose(fp); \
+		return 0xffffffff; \
 	} \
 }
 	uInt32 avail;
@@ -105,9 +111,11 @@ void galvani_send_command(struct Galvani* dev, const char* command, int32_t comm
 	if(DAQmxFailed(error=(functionCall))) { \
 		char err_message[2048]; \
 		DAQmxGetExtendedErrorInfo(err_message, 2048); \
-		fputs("DAQmx Error: ", stderr); \
-		fputs(err_message, stderr); \
-		fputs("\n", stderr); \
+		FILE *fp = fopen("DAQerr.txt", "a"); \
+		fputs("DAQmx Error: ", fp); \
+		fputs(err_message, fp); \
+		fputs("\n", fp); \
+		fclose(fp); \
 		return; \
 	} \
 }
@@ -176,7 +184,8 @@ struct GalvaniDevice {
 	std::shared_mutex lock;
 	std::thread worker;
 	std::atomic_bool stopped;
-	GalvaniDevice(const char* dev_name, size_t dev_name_len) :dev_name(dev_name, dev_name + dev_name_len), waveform_array(128), stopped(true) {}
+	std::atomic_bool error;
+	GalvaniDevice(const char* dev_name, size_t dev_name_len) :dev_name(dev_name, dev_name + dev_name_len), waveform_array(128), stopped(true), error(false) {}
 };
 
 struct GalvaniDevice* GetGalvaniDevice(const char* dev_name, size_t dev_name_len) {
@@ -185,11 +194,20 @@ struct GalvaniDevice* GetGalvaniDevice(const char* dev_name, size_t dev_name_len
 
 void galvaniNIWorker(struct GalvaniDevice* gd) {
 	std::unique_ptr<struct Galvani> dev(galvani_init_ni(gd->dev_name.c_str()));
+	if (!dev) {
+		gd->error = true;
+		return;
+	}
 	galvani_set_buffer_size(dev.get(), DELAY * 2);
 	std::vector<uint8_t> current_status(128);
 	int c_ch = 0;
 	for (;;) {
 		uint32_t buffer_samples = galvani_get_buffer_samples(dev.get());
+		if (buffer_samples == 0xffffffff) {
+			galvani_end(dev.get());
+			gd->error = true;
+			return;
+		}
 		if (buffer_samples > 8 * DELAY * SAMPLES_PER_SEC) {
 			std::this_thread::sleep_for(std::chrono::milliseconds(int64_t(DELAY * 618)));
 		}
@@ -292,8 +310,9 @@ void GalvaniDeviceSetChannel(struct GalvaniDevice* gd, int channel, struct Chann
 		gd->waveform_array[channel] = std::pair<std::unique_ptr<ChannelInfo>, int64_t>();
 }
 
-void GalvaniDeviceGetStatus(struct GalvaniDevice* gd, bool buffer[128]) {
+bool GalvaniDeviceGetStatus(struct GalvaniDevice* gd, bool buffer[128]) {
 	for (int i = 0; i < 128; ++i) {
 		buffer[i] = bool(gd->waveform_array[i].first);
 	}
+	return gd->error;
 }

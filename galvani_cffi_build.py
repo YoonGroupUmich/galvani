@@ -10,7 +10,7 @@ struct GalvaniDevice* GetGalvaniDevice(const char* dev_name, size_t dev_name_len
 void StartGalvaniDevice(struct GalvaniDevice* gd);
 void StopGalvaniDevice(struct GalvaniDevice* gd);
 void GalvaniDeviceSetChannel(struct GalvaniDevice* gd, int channel, struct ChannelInfo* ci);
-void GalvaniDeviceGetStatus(struct GalvaniDevice* gd, bool buffer[128]);
+bool GalvaniDeviceGetStatus(struct GalvaniDevice* gd, bool buffer[128]);
 ''')
 
 # set_source() gives the name of the python extension module to

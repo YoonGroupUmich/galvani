@@ -23,7 +23,7 @@ GALVANI_API struct GalvaniDevice* GetGalvaniDevice(const char* dev_name, size_t 
 GALVANI_API void StartGalvaniDevice(struct GalvaniDevice* gd);
 GALVANI_API void StopGalvaniDevice(struct GalvaniDevice* gd);
 GALVANI_API void GalvaniDeviceSetChannel(struct GalvaniDevice* gd, int channel, struct ChannelInfo* ci);
-GALVANI_API void GalvaniDeviceGetStatus(struct GalvaniDevice* gd, bool buffer[128]);
+GALVANI_API bool GalvaniDeviceGetStatus(struct GalvaniDevice* gd, bool buffer[128]);
 
 // ======= Low level APIs =======
 struct Galvani;
