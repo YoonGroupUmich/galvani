@@ -17,8 +17,8 @@ import galvani
 __version__ = '0.0.1'
 
 logging.basicConfig(level=os.environ.get("LOGLEVEL", "DEBUG"))
-oscgui_config = configparser.ConfigParser()
-oscgui_config.read('config.ini')
+galgui_config = configparser.ConfigParser()
+galgui_config.read('config.ini')
 
 
 class LabeledCtrl(wx.BoxSizer):
@@ -84,7 +84,7 @@ class ChannelCtrl:
         obj.SetLabel('Continuous' if val else 'One-shot')
         self.continuous = val
         self.set_modified()
-        if oscgui_config['Waveform']['realtime_update'] == 'yes':
+        if galgui_config['Waveform']['realtime_update'] == 'yes':
             self.mf.on_update(None)
 
     def update_param(self):
@@ -111,7 +111,7 @@ class ChannelCtrl:
 
     def on_waveform_choice(self, event: wx.Event):
         self.set_modified()
-        if oscgui_config['Waveform']['realtime_update'] == 'yes':
+        if galgui_config['Waveform']['realtime_update'] == 'yes':
             self.mf.on_update(None)
 
     def on_trigger(self, event: wx.Event):
@@ -580,32 +580,54 @@ class MainFrame(wx.Frame):
         self.wfm = WaveformManager(p, self)
         left_box.Add(self.wfm, 1, wx.EXPAND)
 
-        channel_panel = wx.StaticBoxSizer(wx.VERTICAL, p)
-        channel_box = wx.FlexGridSizer(7, 5, 5)
-        self.channel_box = channel_box
-        channel_box.Add(wx.StaticText(p, -1, 'Channel #'), 0, wx.ALIGN_CENTER)
-        channel_box.Add(wx.StaticText(p, -1, 'Waveform'), 0, wx.ALIGN_CENTER)
-        channel_box.Add(wx.StaticText(p, -1, 'Mode'), 0,
-                        wx.ALIGN_CENTER)
-        channel_box.Add(wx.StaticText(p, -1, 'Trigger'), 0,
-                        wx.ALIGN_CENTER)
-        channel_box.Add(wx.StaticText(p, -1, 'Stop'), 0,
-                        wx.ALIGN_CENTER)
-        channel_box.Add(wx.StaticText(p, -1, 'Status'), 0, wx.ALIGN_CENTER)
-        channel_box.Add(wx.StaticText(p, -1, 'Del'), 0, wx.ALIGN_CENTER)
         channels_ui = []
-        channel_box.AddGrowableCol(5, 1)
         self.channels_ui = channels_ui
-        for i in range(12):
-            self.add_channel(i, 'Channel %d' % i)
-        channel_panel.Add(channel_box, 1, wx.EXPAND)
+        if galgui_config['GalGUI']['show_all_channels'] == 'yes':
+            channel_panel = wx.Notebook(p)
+            channel_map = {'Shank 1 (1/2)':[108,115,109,114,110,113,111,112,104,119,105,118,106,117,107,116],'Shank 1 (2/2)':[100,123,101,122,102,121,103,120,96,127,97,126,98,125,99,124],'Shank 2 (1/2)':[80,79,81,78,82,77,83,76,84,75,85,74,86,73,87,72],'Shank 2 (2/2)':[88,71,89,70,90,69,91,68,92,67,93,66,94,65,95,64],'Shank 3 (1/2)':[15,16,14,17,13,18,12,19,11,20,10,21,9,22,8,23],'Shank 3 (2/2)':[7,24,6,25,5,26,4,27,3,28,2,29,1,30,0,31],'Shank 4 (1/2)':[51,44,50,45,49,46,48,47,55,40,54,41,53,42,52,43],'Shank 4 (2/2)':[59,36,58,37,57,38,56,39,63,32,62,33,61,34,60,35]}
+            for text, chs in channel_map.items():
+                page_panel = wx.Panel(channel_panel)
+                channel_box = wx.FlexGridSizer(17, 7, 5, 5)
+                channel_box.AddGrowableCol(5, 1)
+                channel_box.Add(wx.StaticText(page_panel, -1, 'Channel #'), 0, wx.ALIGN_CENTER)
+                channel_box.Add(wx.StaticText(page_panel, -1, 'Waveform'), 0, wx.ALIGN_CENTER)
+                channel_box.Add(wx.StaticText(page_panel, -1, 'Mode'), 0,
+                                wx.ALIGN_CENTER)
+                channel_box.Add(wx.StaticText(page_panel, -1, 'Trigger'), 0,
+                                wx.ALIGN_CENTER)
+                channel_box.Add(wx.StaticText(page_panel, -1, 'Stop'), 0,
+                                wx.ALIGN_CENTER)
+                channel_box.Add(wx.StaticText(page_panel, -1, 'Status'), 0, wx.ALIGN_CENTER)
+                channel_box.AddSpacer(0)
+                for ch in chs:
+                    self.add_channel(ch, 'Channel %d' % ch, channel_box, channels_ui, page_panel)
+                page_panel.SetSizerAndFit(channel_box)
+                channel_panel.AddPage(page_panel, text)
+
+        else:
+            channel_panel = wx.StaticBoxSizer(wx.VERTICAL, p)
+            channel_box = wx.FlexGridSizer(7, 5, 5)
+            channel_box.Add(wx.StaticText(p, -1, 'Channel #'), 0, wx.ALIGN_CENTER)
+            channel_box.Add(wx.StaticText(p, -1, 'Waveform'), 0, wx.ALIGN_CENTER)
+            channel_box.Add(wx.StaticText(p, -1, 'Mode'), 0,
+                            wx.ALIGN_CENTER)
+            channel_box.Add(wx.StaticText(p, -1, 'Trigger'), 0,
+                            wx.ALIGN_CENTER)
+            channel_box.Add(wx.StaticText(p, -1, 'Stop'), 0,
+                            wx.ALIGN_CENTER)
+            channel_box.Add(wx.StaticText(p, -1, 'Status'), 0, wx.ALIGN_CENTER)
+            channel_box.Add(wx.StaticText(p, -1, 'Del'), 0, wx.ALIGN_CENTER)
+            channel_box.AddGrowableCol(5, 1)
+            for i in range(12):
+                self.add_channel(i, 'Channel %d' % i, channel_box, channels_ui, p)
+            channel_panel.Add(channel_box, 1, wx.EXPAND)
 
         right_box = wx.BoxSizer(wx.VERTICAL)
         right_box.Add(channel_panel, 0, wx.EXPAND | wx.BOTTOM, 5)
 
         extra_buttons = wx.BoxSizer(wx.HORIZONTAL)
 
-        if oscgui_config['Waveform']['realtime_update'] != 'yes':
+        if galgui_config['Waveform']['realtime_update'] != 'yes':
             update_all = wx.Button(p, -1, 'Update all channel parameters')
             update_all.SetToolTip(
                 'This will update all waveform parameters, '
@@ -621,15 +643,16 @@ class MainFrame(wx.Frame):
         extra_buttons.Add(trigger_all)
         self.board_relative_controls.append(trigger_all)
 
-        add_channel = wx.Button(p, -1, 'Add Channel')
-        add_channel.Bind(wx.EVT_BUTTON, self.on_add_channel)
-        extra_buttons.Add(add_channel)
+        if galgui_config['GalGUI']['show_all_channels'] != 'yes':
+            add_channel = wx.Button(p, -1, 'Add Channel')
+            add_channel.Bind(wx.EVT_BUTTON, self.on_add_channel)
+            extra_buttons.Add(add_channel)
 
         right_box.Add(extra_buttons, 0, wx.EXPAND | wx.BOTTOM, 20)
 
         log_text = wx.TextCtrl(p, -1, style=wx.TE_MULTILINE | wx.TE_READONLY)
         self.log_sh = logging.StreamHandler(log_text)
-        self.log_sh.setLevel(logging.DEBUG if oscgui_config['GalGUI']['verbose_log'] == 'yes' else logging.INFO)
+        self.log_sh.setLevel(logging.DEBUG if galgui_config['GalGUI']['verbose_log'] == 'yes' else logging.INFO)
         self.formatter = logging.Formatter(
             '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
         self.log_sh.setFormatter(self.formatter)
@@ -645,16 +668,16 @@ class MainFrame(wx.Frame):
         save_log_checkbox = wx.CheckBox(p, -1, 'Save log to file')
         save_log_checkbox.Bind(wx.EVT_CHECKBOX, self.on_save_log)
 
-        if oscgui_config['GalGUI']['save_log_to_file'] == 'yes':
+        if galgui_config['GalGUI']['save_log_to_file'] == 'yes':
             save_log_checkbox.SetValue(True)
             self.log_fh = logging.FileHandler(
                 time.strftime('oscgui-%Y%m%d.log'), delay=True)
-            self.log_fh.setLevel(logging.DEBUG if oscgui_config['GalGUI']['verbose_log'] == 'yes' else logging.INFO)
+            self.log_fh.setLevel(logging.DEBUG if galgui_config['GalGUI']['verbose_log'] == 'yes' else logging.INFO)
             self.log_fh.setFormatter(self.formatter)
             logging.getLogger().addHandler(self.log_fh)
         else:
             self.log_fh = None
-        verbose_log_checkbox.SetValue(oscgui_config['GalGUI']['verbose_log'] == 'yes')
+        verbose_log_checkbox.SetValue(galgui_config['GalGUI']['verbose_log'] == 'yes')
 
         clear_log_button = wx.Button(p, -1, 'Clear Log')
         clear_log_button.Bind(wx.EVT_BUTTON, lambda _: log_text.Clear())
@@ -681,9 +704,9 @@ class MainFrame(wx.Frame):
         obj = event.GetEventObject()
         assert isinstance(obj, wx.CheckBox)
         if obj.GetValue():
-            oscgui_config['GalGUI']['save_log_to_file'] = 'yes'
+            galgui_config['GalGUI']['save_log_to_file'] = 'yes'
             with open('config.ini', 'w') as fp:
-                oscgui_config.write(fp)
+                galgui_config.write(fp)
             if self.log_fh is None:
                 self.log_fh = logging.FileHandler(
                     time.strftime('oscgui-%Y%m%d.log'), delay=True)
@@ -692,9 +715,9 @@ class MainFrame(wx.Frame):
                 logging.getLogger().addHandler(self.log_fh)
 
         else:
-            oscgui_config['GalGUI']['save_log_to_file'] = 'no'
+            galgui_config['GalGUI']['save_log_to_file'] = 'no'
             with open('config.ini', 'w') as fp:
-                oscgui_config.write(fp)
+                galgui_config.write(fp)
             if self.log_fh:
                 logging.getLogger().removeHandler(self.log_fh)
                 self.log_fh.close()
@@ -704,17 +727,17 @@ class MainFrame(wx.Frame):
         obj = event.GetEventObject()
         assert isinstance(obj, wx.CheckBox)
         if obj.GetValue():
-            oscgui_config['GalGUI']['verbose_log'] = 'yes'
+            galgui_config['GalGUI']['verbose_log'] = 'yes'
             with open('config.ini', 'w') as fp:
-                oscgui_config.write(fp)
+                galgui_config.write(fp)
             self.log_sh.setLevel(logging.DEBUG)
             if self.log_fh is not None:
                 self.log_fh.setLevel(logging.DEBUG)
 
         else:
-            oscgui_config['GalGUI']['verbose_log'] = 'no'
+            galgui_config['GalGUI']['verbose_log'] = 'no'
             with open('config.ini', 'w') as fp:
-                oscgui_config.write(fp)
+                galgui_config.write(fp)
             self.log_sh.setLevel(logging.INFO)
             if self.log_fh is not None:
                 self.log_fh.setLevel(logging.INFO)
@@ -728,11 +751,11 @@ class MainFrame(wx.Frame):
             for x in self.channels_ui:
                 if x.modified:
                     x.update_param()
-            if oscgui_config['Waveform']['realtime_update'] != 'yes':
+            if galgui_config['Waveform']['realtime_update'] != 'yes':
                 logging.getLogger('GalGUI').info(
                     'Waveform updated: %s',
                     ', '.join(self.channels_ui[ch].channel_name for ch in chs))
-        elif oscgui_config['Waveform']['realtime_update'] != 'yes':
+        elif galgui_config['Waveform']['realtime_update'] != 'yes':
             logging.getLogger('GalGUI').info(
                 'Channels already up to date')
 
@@ -754,7 +777,7 @@ class MainFrame(wx.Frame):
             for x in self.board_relative_controls:
                 x.Enable()
             logging.getLogger('GalGUI').info('Connected')
-            if oscgui_config['Waveform']['realtime_update'] == 'yes':
+            if galgui_config['Waveform']['realtime_update'] == 'yes':
                 self.on_update(None)
             self.Thaw()
         else:
@@ -800,7 +823,7 @@ class MainFrame(wx.Frame):
             wf = x.waveform_choice.GetStringSelection()
             if waveform == wf:
                 x.set_modified()
-        if oscgui_config['Waveform']['realtime_update'] == 'yes':
+        if galgui_config['Waveform']['realtime_update'] == 'yes':
             self.on_update(None)
         self.Thaw()
 
@@ -858,14 +881,11 @@ class MainFrame(wx.Frame):
             except (IOError, ValueError, KeyError, AssertionError) as e:
                 logging.getLogger('GalGUI').error(
                     'Failed to load config file: ' + str(e))
-            if oscgui_config['Waveform']['realtime_update'] == 'yes':
+            if galgui_config['Waveform']['realtime_update'] == 'yes':
                 self.on_update(None)
             self.Thaw()
 
-    def add_channel(self, ch: int, name: str):
-        channel_box = self.channel_box
-        p = self.p
-        channels_ui = self.channels_ui
+    def add_channel(self, ch: int, name: str, channel_box, channels_ui, p):
         sizers = []
         channel_label = wx.StaticText(p, -1, name)
         channel_box.Add(channel_label, 0, wx.ALIGN_CENTER)
@@ -906,6 +926,8 @@ class MainFrame(wx.Frame):
 
         del_button = wx.Button(p, -1, 'X',
                                style=wx.BU_EXACTFIT)
+        if galgui_config['GalGUI']['show_all_channels'] == 'yes':
+            del_button.Hide()
         wrap_box = wx.BoxSizer(wx.HORIZONTAL)
         wrap_box.Add(del_button, 1, wx.ALIGN_CENTER_VERTICAL)
         channel_box.Add(wrap_box, 0, wx.EXPAND | wx.LEFT, 5)
