@@ -519,11 +519,11 @@ class WaveformManager(wx.ScrolledWindow):
         assert isinstance(obj, wx.Button)
         for idx, x in enumerate(self.waveform_panels):
             if ident == x.delete_button.GetId():
-                ch = self.mf.is_wf_using(x.label)
-                if ch != -1:
+                ch = self.mf.is_wf_using(idx)
+                if ch is not None:
                     wx.MessageBox(
                         'Cannot delete waveform.\n'
-                        'Waveform is being used by channel %d.' % ch,
+                        'Waveform is being used by %s.' % ch,
                         'Error', wx.ICON_ERROR | wx.OK | wx.CENTRE, self.mf)
                     return
                 self.parent.Freeze()
@@ -853,12 +853,12 @@ class MainFrame(wx.Frame):
                 x.update_status(status_array[x.ch])
             event.RequestMore()
 
-    def is_wf_using(self, waveform: str):
-        for ch, x in enumerate(self.channels_ui):
-            wf = x.waveform_choice.GetStringSelection()
-            if waveform == wf:
-                return ch
-        return -1
+    def is_wf_using(self, wf_index: int):
+        for x in self.channels_ui:
+            wf = x.waveform_choice.GetSelection()
+            if wf_index == wf:
+                return x.channel_name
+        return None
 
     def set_wf_modified(self, waveform: str):
         self.Freeze()
