@@ -217,8 +217,8 @@ class SquareWavePanel(wx.FlexGridSizer):
         return galvani.SquareWaveform(amp=self.amp,
                                       pulse_width=self.pulse_width / 1000,
                                       period=self.period / 1000,
-                                      rising_time=self.rise_time,
-                                      falling_time=self.fall_time)
+                                      rising_time=self.rise_time / 1000,
+                                      falling_time=self.fall_time / 1000)
 
     def to_dict(self):
         return {'amp': self.amp, 'pulse_width': self.pulse_width,
