@@ -148,10 +148,11 @@ struct SquareWaveform :public Waveform {
 
 struct CustomWaveform :public Waveform {
 	std::vector<uint8_t> wave;
-	CustomWaveform(const char* wave, size_t wave_len) :wave(wave, wave + wave_len) {}
+	double sample_rate;
+	CustomWaveform(const char* wave, size_t wave_len, double sample_rate) :wave(wave, wave + wave_len), sample_rate(sample_rate) {}
 	double getDuration() override final { return wave.size() / 1000.; }
 	uint8_t getSample(double time) override final {
-		assert(time * 1000 < wave.size());
+		assert(time * sample_rate < wave.size());
 		return wave[int(time * 1000)];
 	}
 };
@@ -165,8 +166,8 @@ struct ChannelInfo {
 struct ChannelInfo* GetChannelInfoSquare(int64_t n_pulses, double rising_time, double amp, double pulse_width, double period, double falling_time) {
 	return new ChannelInfo(n_pulses, new SquareWaveform(rising_time, amp, pulse_width, period, falling_time));
 }
-struct ChannelInfo* GetChannelInfoCustom(int64_t n_pulses, const char* wave, size_t wave_len) {
-	return new ChannelInfo(n_pulses, new CustomWaveform(wave, wave_len));
+struct ChannelInfo* GetChannelInfoCustom(int64_t n_pulses, const char* wave, size_t wave_len, double sample_rate) {
+	return new ChannelInfo(n_pulses, new CustomWaveform(wave, wave_len, sample_rate));
 }
 
 struct GalvaniDevice {

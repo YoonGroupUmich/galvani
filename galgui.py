@@ -300,22 +300,54 @@ class SquareWavePanel(wx.FlexGridSizer):
         event.Skip()
 
 
-class CustomWavePanel(wx.BoxSizer):
-    def __init__(self, parent, init_dict=None):
-        wx.BoxSizer.__init__(self, wx.VERTICAL)
+class CustomWavePanel(wx.FlexGridSizer):
+    def __init__(self, parent, modify_callback, init_dict=None):
+        wx.FlexGridSizer.__init__(self, 2, 2, 5, 5)
+        self.AddGrowableCol(0, 4)
+        self.AddGrowableCol(1, 1)
         self.Add(wx.StaticText(parent, -1, 'Custom Waveform File'), 0,
                  wx.EXPAND)
+        self.Add(wx.StaticText(parent, -1, 'Sample Rate (Sa/s)'), 0, wx.EXPAND)
+
+        self.wave = []
+        try:
+            self.sample_rate = init_dict['sample_rate']
+        except (TypeError, KeyError, ValueError):
+            self.sample_rate = 1000  # Sample/s
+
         self.file_picker = wx.FilePickerCtrl(parent, -1, wildcard='*.cwave')
         self.file_picker.Bind(wx.EVT_FILEPICKER_CHANGED, self.on_file)
         self.Add(self.file_picker, 0, wx.EXPAND)
-        self.wave = []
+        self.sample_rate_text = wx.TextCtrl(parent, -1, '%f' % self.sample_rate,
+                                          style=wx.TE_PROCESS_ENTER)
+        self.sample_rate_text.SetToolTip(
+            'Range: 0~13kSa/s')
+        self.sample_rate_text.Bind(wx.EVT_KILL_FOCUS, self.on_sample_rate)
+        self.sample_rate_text.Bind(wx.EVT_TEXT_ENTER, self.on_sample_rate)
+        self.Add(self.sample_rate_text, 0, wx.EXPAND)
+
+        self.modify_callback = modify_callback
 
     def on_file(self, event: wx.Event):
         with open(self.file_picker.GetPath()) as fp:
             self.wave = [float(x) for x in fp.read().split()]
 
+    def on_sample_rate(self, event: wx.Event):
+        try:
+            val = float(self.sample_rate_text.GetValue())
+        except ValueError:
+            self.sample_rate_text.SetValue('%f' % self.sample_rate)
+            event.Skip()
+            return
+        val = val if val > 0 else 0
+        if self.sample_rate != val:
+            self.sample_rate = val
+            self.modify_callback()
+        self.sample_rate_text.SetValue('%f' % self.sample_rate)
+        event.Skip()
+
     def get_waveform(self) -> galvani.CustomWaveform:
-        return galvani.CustomWaveform(self.wave)
+        return galvani.CustomWaveform(self.wave, self.sample_rate)
 
 
 class WaveFormPanel(wx.StaticBoxSizer):
@@ -362,7 +394,7 @@ class WaveFormPanel(wx.StaticBoxSizer):
         self.Add(common, 0, wx.EXPAND)
         self.p_square = SquareWavePanel(p, lambda: modify_callback(self.label),
                                         init_dict=init_dict)
-        self.p_custom = CustomWavePanel(p, init_dict=init_dict)
+        self.p_custom = CustomWavePanel(p, lambda: modify_callback(self.label), init_dict=init_dict)
         self.Add(self.p_square, 0, wx.EXPAND | wx.ALL, 3)
         self.Add(self.p_custom, 0, wx.EXPAND | wx.ALL, 3)
         self.Hide(self.p_custom)
@@ -384,8 +416,8 @@ class WaveFormPanel(wx.StaticBoxSizer):
             return galvani.GetChannelInfoSquare(n_pulses, wf.rising_time, wf.amp, wf.pulse_width,
                                                 wf.period, wf.falling_time)
         elif isinstance(wf, galvani.CustomWaveform):
-            wf_data = np.array(wf.data, dtype=np.uint8).tobytes()
-            return galvani.GetChannelInfoCustom(n_pulses, wf_data, len(wf_data))
+            wf_data = np.array(wf.wave, dtype=np.uint8).tobytes()
+            return galvani.GetChannelInfoCustom(n_pulses, wf_data, len(wf_data), wf.sample_rate)
 
     def to_dict(self) -> dict:
         ret = {'label': self.label,
@@ -421,7 +453,7 @@ class WaveFormPanel(wx.StaticBoxSizer):
                     'Preview for ' + self.label)
                 return
             else:
-                xs = range(len(wf.wave))
+                xs = np.arange(len(wf.wave)) / wf.sample_rate * 1000
                 ys = wf.wave
         else:
             raise TypeError('Waveform type not supported')
@@ -444,6 +476,7 @@ class WaveFormPanel(wx.StaticBoxSizer):
             self.Show(self.p_custom)
             self.Layout()
             self.detail = self.p_custom
+        self.modify_callback(self.label)
 
 
 class WaveformManager(wx.ScrolledWindow):

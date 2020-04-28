@@ -16,8 +16,9 @@ class SquareWaveform:
 
 
 class CustomWaveform:
-    def __init__(self, wave=None):
+    def __init__(self, wave=None, sample_rate=1000):
         if wave is None:
             self.wave = []
         else:
             self.wave = wave
+        self.sample_rate = sample_rate
