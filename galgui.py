@@ -588,7 +588,7 @@ class MainFrame(wx.Frame):
 
         # Setup frame
         setup_sizer = wx.StaticBoxSizer(wx.HORIZONTAL, p, 'Setup')
-        self.device_choice = wx.TextCtrl(p, -1, '/Dev1')
+        self.device_choice = wx.TextCtrl(p, -1, galgui_config['GalGUI']['device_name'])
         self.connect_button = wx.Button(p, -1, 'Connect')
         self.connect_button.Bind(wx.EVT_BUTTON, lambda _: self.on_connect())
         setup_sizer.Add(LabeledCtrl(self.device_choice, p, -1,
@@ -805,7 +805,11 @@ class MainFrame(wx.Frame):
         if connect:
             if self.device is not None:
                 return
-            device_name = self.device_choice.GetValue().encode()
+            device_name = self.device_choice.GetValue()
+            galgui_config['GalGUI']['device_name'] = device_name
+            with open('config.ini', 'w') as fp:
+                galgui_config.write(fp)
+            device_name = device_name.encode()
             self.device = galvani.GetGalvaniDevice(device_name, len(device_name))
             galvani.StartGalvaniDevice(self.device)
             self.Freeze()
