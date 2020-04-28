@@ -94,7 +94,7 @@ class ChannelCtrl:
         self.channel_label.SetLabel(self.channel_name)
 
     def to_dict(self):
-        return {'channel_name': self.channel_name, 'waveform': self.waveform,
+        return {'ch':self.ch, 'channel_name': self.channel_name, 'waveform': self.waveform,
                 'continuous': self.continuous}
 
     def from_dict(self, d: dict):
@@ -571,8 +571,6 @@ class MainFrame(wx.Frame):
         load_config_button.Bind(wx.EVT_BUTTON, self.on_load_config)
         config_sizer.Add(load_config_button, wx.SizerFlags().Expand())
         config_sizer.AddStretchSpacer(1)
-        self.board_relative_controls.extend(
-            (save_config_button, load_config_button))
 
         left_box.Add(config_sizer, wx.SizerFlags().Expand())
         left_box.AddSpacer(30)
@@ -607,6 +605,7 @@ class MainFrame(wx.Frame):
         else:
             channel_panel = wx.StaticBoxSizer(wx.VERTICAL, p)
             channel_box = wx.FlexGridSizer(7, 5, 5)
+            self.channel_box = channel_box
             channel_box.Add(wx.StaticText(p, -1, 'Channel #'), 0, wx.ALIGN_CENTER)
             channel_box.Add(wx.StaticText(p, -1, 'Waveform'), 0, wx.ALIGN_CENTER)
             channel_box.Add(wx.StaticText(p, -1, 'Mode'), 0,
@@ -854,7 +853,7 @@ class MainFrame(wx.Frame):
                                             for x in self.wfm.waveform_panels],
                               'channels': [x.to_dict()
                                            for x in self.channels_ui]}
-                    json.dump(config, fp)
+                    json.dump(config, fp, separators=(',', ':'))
                     logging.getLogger('GalGUI').info(
                         'Saved config file to ' + pathname)
             except IOError:
@@ -876,6 +875,19 @@ class MainFrame(wx.Frame):
                     raise ValueError('Config file has incompatible version (config version: ' + config[
                         '__version__'] + ', software version: ' + __version__ + ')')
                 self.wfm.from_dict(config['waveforms'])
+                if galgui_config['GalGUI']['show_all_channels'] == 'yes':
+                    for x in config['channels']:
+                        for y in self.channels_ui:
+                            if y.ch == x['ch']:
+                                y.from_dict(x)
+                else:
+                    self.Freeze()
+                    while self.channels_ui:
+                        self.channels_ui[0].on_del(None)
+                    for x in config['channels']:
+                        self.add_channel(x['ch'], x['channel_name'], self.channel_box, self.channels_ui, self.p)
+                    self.p.Layout()
+                    self.Thaw()
                 for x, y in zip(self.channels_ui, config['channels']):
                     x.from_dict(y)
             except (IOError, ValueError, KeyError, AssertionError) as e:
@@ -955,7 +967,7 @@ class MainFrame(wx.Frame):
                                                               ch_dialog.GetValue())
                             return
                     self.Freeze()
-                    self.add_channel(ch, 'Channel %d' % ch)
+                    self.add_channel(ch, 'Channel %d' % ch, self.channel_box, self.channels_ui, self.p)
                     self.p.Layout()
                     self.Thaw()
                 else:
