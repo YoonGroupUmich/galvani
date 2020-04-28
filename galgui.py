@@ -589,10 +589,11 @@ class MainFrame(wx.Frame):
         # Setup frame
         setup_sizer = wx.StaticBoxSizer(wx.HORIZONTAL, p, 'Setup')
         self.device_choice = wx.TextCtrl(p, -1, galgui_config['GalGUI']['device_name'])
+        self.device_choice.SetToolTip('You can find the interface name in NI MAX. Prepend that name with a "/"')
         self.connect_button = wx.Button(p, -1, 'Connect')
         self.connect_button.Bind(wx.EVT_BUTTON, lambda _: self.on_connect())
         setup_sizer.Add(LabeledCtrl(self.device_choice, p, -1,
-                                    'Enter your NI interface'),
+                                    'Enter your NI interface name'),
                         0, wx.EXPAND | wx.ALL, 3)
         setup_sizer.AddStretchSpacer(1)
         setup_sizer.Add(self.connect_button, 0, wx.EXPAND | wx.ALL, 3)
