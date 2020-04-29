@@ -148,7 +148,7 @@ class SquareWavePanel(wx.FlexGridSizer):
         wx.FlexGridSizer.__init__(self, 2, 5, 5, 5)
         for i in range(5):
             self.AddGrowableCol(i, 1)
-        self.Add(wx.StaticText(parent, -1, 'Amplitude (\u03bcA)'), 0, wx.EXPAND)
+        self.Add(wx.StaticText(parent, -1, 'Amplitude (code value)'), 0, wx.EXPAND)
         self.Add(wx.StaticText(parent, -1, 'Period (ms)'), 0, wx.EXPAND)
         self.Add(wx.StaticText(parent, -1, 'Pulse Width (ms)'), 0, wx.EXPAND)
         self.Add(wx.StaticText(parent, -1, 'Rising Time (ms)'), 0, wx.EXPAND)
@@ -474,7 +474,7 @@ class WaveFormPanel(wx.StaticBoxSizer):
         plt.figure(num='Preview for ' + self.label)
         plt.plot(xs, ys, label=self.label)
         plt.xlabel('time (ms)')
-        plt.ylabel('amplitude (\u03bcA)')
+        plt.ylabel('amplitude (code value)')
         plt.show()
 
     def on_type(self, event: wx.Event):
@@ -814,10 +814,35 @@ class MainFrame(wx.Frame):
                 return
             device_name = self.device_choice.GetValue()
             galgui_config['GalGUI']['device_name'] = device_name
+            try:
+                bias = int(galgui_config['Galvani']['bias'])
+            except ValueError:
+                bias_dialog = wx.Dialog(self, -1, 'Set Bias')
+                s = wx.BoxSizer(wx.VERTICAL)
+                gs = wx.GridSizer(2, 2, 5, 5)
+                rb_ext = wx.RadioButton(bias_dialog, -1, 'External Bias')
+                rb_int = wx.RadioButton(bias_dialog, -1, 'Internal Bias')
+                t_int = wx.SpinCtrl(bias_dialog, min=0, max=127)
+                t_int.Bind(wx.EVT_SPINCTRL, lambda _: rb_int.SetValue(True))
+                gs.Add(rb_ext)
+                gs.AddSpacer(0)
+                gs.Add(rb_int)
+                gs.Add(t_int)
+                s.Add(gs, wx.SizerFlags().Expand().Border(wx.ALL, 5))
+                save = wx.CheckBox(bias_dialog, -1, "Save bias settings and don't ask again. (You can clear this by setting bias to empty in config.ini)")
+                s.Add(save, wx.SizerFlags().Expand().Border(wx.ALL, 5))
+                s.Add(bias_dialog.CreateSeparatedButtonSizer(wx.OK | wx.CANCEL), wx.SizerFlags().Expand().Border(wx.ALL, 5))
+                bias_dialog.SetSizerAndFit(s)
+                if bias_dialog.ShowModal() != wx.ID_OK:
+                    return
+                bias = 0x80 if rb_ext.GetValue() else int(t_int.GetValue())
+                if save.GetValue():
+                    galgui_config['Galvani']['bias'] = str(bias)
+            logging.getLogger('GalGUI').info('Bias set to %d', bias)
             with open('config.ini', 'w') as fp:
                 galgui_config.write(fp)
             device_name = device_name.encode()
-            self.device = galvani.GetGalvaniDevice(device_name, len(device_name))
+            self.device = galvani.GetGalvaniDevice(device_name, len(device_name), bias)
             galvani.StartGalvaniDevice(self.device)
             self.Freeze()
             for x in self.channels_ui:

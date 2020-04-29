@@ -6,7 +6,7 @@ ffibuilder = FFI()
 ffibuilder.cdef('''
 struct ChannelInfo* GetChannelInfoSquare(int64_t n_pulses, double rising_time, double amp, double pulse_width, double period, double falling_time);
 struct ChannelInfo* GetChannelInfoCustom(int64_t n_pulses, const char* wave, size_t wave_len, double sample_rate);
-struct GalvaniDevice* GetGalvaniDevice(const char* dev_name, size_t dev_name_len);
+struct GalvaniDevice* GetGalvaniDevice(const char* dev_name, size_t dev_name_len, uint8_t offset);
 void StartGalvaniDevice(struct GalvaniDevice* gd);
 void StopGalvaniDevice(struct GalvaniDevice* gd);
 void GalvaniDeviceSetChannel(struct GalvaniDevice* gd, int channel, struct ChannelInfo* ci);

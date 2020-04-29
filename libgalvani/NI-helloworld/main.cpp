@@ -183,12 +183,21 @@ struct GalvaniDevice {
 	std::thread worker;
 	std::atomic_bool stopped;
 	std::atomic_bool error;
-	GalvaniDevice(const char* dev_name, size_t dev_name_len) :dev_name(dev_name, dev_name + dev_name_len), waveform_array(128), stopped(true), error(false) {}
+	uint8_t offset;
+	GalvaniDevice(const char* dev_name, size_t dev_name_len, uint8_t offset) :dev_name(dev_name, dev_name + dev_name_len), waveform_array(128), stopped(true), error(false), offset(offset) {}
 };
 
-struct GalvaniDevice* GetGalvaniDevice(const char* dev_name, size_t dev_name_len) {
-	return new GalvaniDevice(dev_name, dev_name_len);
+struct GalvaniDevice* GetGalvaniDevice(const char* dev_name, size_t dev_name_len, uint8_t offset) {
+	return new GalvaniDevice(dev_name, dev_name_len, offset);
 }
+
+// Command:
+// | 10101010 | 00xxxxxx | xxxxxxxx | xxxxxxxx | xxxxxxxx | xxxxxxxx | xxxxxxxx | 10101011 |
+//                |\---/   |\-----/   \ amp0 /   \ amp1 /   \ amp2 /   \ amp3 /
+//                |  |     |   \- bias_amp (7 bit)
+//                |  |     \- bias_sel (1 bit)
+//                |  \- addr (5 bits)
+//                \- mode (1 bit)
 
 void galvaniNIWorker(struct GalvaniDevice* gd) {
 	std::unique_ptr<struct Galvani> dev(galvani_init_ni(gd->dev_name.c_str()));
@@ -199,6 +208,21 @@ void galvaniNIWorker(struct GalvaniDevice* gd) {
 	galvani_set_buffer_size(dev.get(), DELAY * 2);
 	std::vector<uint8_t> current_status(128);
 	int c_ch = 0;
+	std::vector<uint8_t> command_buffer;
+	command_buffer.reserve(8 * size_t(DELAY * SAMPLES_PER_SEC));
+	if (gd->offset != 0xff) {
+		// Offset command is the very first command. Send it multiple times in case the board is not syncronized
+		for (int i = 0; i < 8; ++i) {
+			command_buffer.emplace_back(0xaa);
+			command_buffer.emplace_back(0x00);
+			command_buffer.emplace_back(gd->offset);
+			command_buffer.emplace_back(0x00);
+			command_buffer.emplace_back(0x00);
+			command_buffer.emplace_back(0x00);
+			command_buffer.emplace_back(0x00);
+			command_buffer.emplace_back(0xab);
+		}
+	}
 	for (;;) {
 		uint32_t buffer_samples = galvani_get_buffer_samples(dev.get());
 		if (buffer_samples == 0xffffffff) {
@@ -214,8 +238,6 @@ void galvaniNIWorker(struct GalvaniDevice* gd) {
 				galvani_end(dev.get());
 				return;
 			}
-			std::vector<uint8_t> command_buffer;
-			command_buffer.reserve(8 * size_t(DELAY * SAMPLES_PER_SEC));
 			{
 				std::unique_lock<std::shared_mutex> guard(gd->lock);
 				for (int i = 0; i<int(DELAY * SAMPLES_PER_SEC); ++i) {
@@ -280,6 +302,7 @@ void galvaniNIWorker(struct GalvaniDevice* gd) {
 			}
 			if (!command_buffer.empty()) {
 				galvani_send_command(dev.get(), reinterpret_cast<char*>(command_buffer.data()), command_buffer.size());
+				command_buffer.clear();
 			}
 			else {
 				std::this_thread::sleep_for(std::chrono::milliseconds(int64_t(DELAY * 618)));
