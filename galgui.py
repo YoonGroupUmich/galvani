@@ -1006,25 +1006,16 @@ class MainFrame(wx.Frame):
         channels_ui.append(channel)
 
     def on_add_channel(self, event: wx.Event):
-        ch_dialog = wx.TextEntryDialog(self, "Enter the channel you want to add: (0 - 127)")
-        if ch_dialog.ShowModal() == wx.ID_OK:
-            try:
-                ch = int(ch_dialog.GetValue())
-                if 0 <= ch < 128:
-                    for x in self.channels_ui:
-                        if ch == x.ch:
-                            logging.getLogger('GalGUI').error('Add Channel failed, channel existed: %s',
-                                                              ch_dialog.GetValue())
-                            return
-                    self.Freeze()
-                    self.add_channel(ch, 'Channel %d' % ch, self.channel_box, self.channels_ui, self.p)
-                    self.p.Layout()
-                    self.Thaw()
-                else:
-                    logging.getLogger('GalGUI').error('Add Channel failed, channel number out of range: %s',
-                                                      ch_dialog.GetValue())
-            except ValueError:
-                logging.getLogger('GalGUI').error('Add Channel failed, not an integer: %s', ch_dialog.GetValue())
+        ch = wx.GetNumberFromUser('Enter the channel you want to add: (0 - 127)', '', 'Add Channel', 0, 0, 127, self)
+        if ch != -1:
+            for x in self.channels_ui:
+                if ch == x.ch:
+                    logging.getLogger('GalGUI').error('Add Channel failed, channel existed: %d', ch)
+                    return
+            self.Freeze()
+            self.add_channel(ch, 'Channel %d' % ch, self.channel_box, self.channels_ui, self.p)
+            self.p.Layout()
+            self.Thaw()
 
 
 if __name__ == '__main__':
