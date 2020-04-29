@@ -413,11 +413,17 @@ class WaveFormPanel(wx.StaticBoxSizer):
         if n_pulses is None:
             n_pulses = self.num_of_pulses.GetValue()
         if isinstance(wf, galvani.SquareWaveform):
-            return galvani.GetChannelInfoSquare(n_pulses, wf.rising_time, wf.amp, wf.pulse_width,
-                                                wf.period, wf.falling_time)
+            if wf.period:
+                return galvani.GetChannelInfoSquare(n_pulses, wf.rising_time, wf.amp, wf.pulse_width,
+                                                    wf.period, wf.falling_time)
+            else:
+                return galvani.ffi.NULL
         elif isinstance(wf, galvani.CustomWaveform):
-            wf_data = np.array(wf.wave, dtype=np.uint8).tobytes()
-            return galvani.GetChannelInfoCustom(n_pulses, wf_data, len(wf_data), wf.sample_rate)
+            if wf.wave:
+                wf_data = np.array(wf.wave, dtype=np.uint8).tobytes()
+                return galvani.GetChannelInfoCustom(n_pulses, wf_data, len(wf_data), wf.sample_rate)
+            else:
+                return galvani.ffi.NULL
 
     def to_dict(self) -> dict:
         ret = {'label': self.label,
