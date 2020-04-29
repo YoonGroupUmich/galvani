@@ -13,6 +13,9 @@
 #include <atomic>
 #include <thread>
 #include <chrono>
+#include <cmath>
+
+static const double PI = acos(-1);
 
 struct Galvani {
 	TaskHandle taskHandle = 0;
@@ -152,6 +155,32 @@ struct SquareWaveform :public Waveform {
 	}
 };
 
+struct SineWaveform :public Waveform {
+	double rising_time;
+	double falling_time;
+	double amp;
+	double pulse_width;
+	double period;
+	SineWaveform(double rising_time, double amp, double pulse_width, double period, double falling_time) :rising_time(rising_time), amp(amp), pulse_width(pulse_width), period(period), falling_time(falling_time) {}
+	double getDuration() override final { return period; }
+	uint8_t getSample(double time) override final {
+		assert(time < period);
+		if (time < pulse_width) {
+			double amplitude = 1;
+			if (time < rising_time) {
+				amplitude = std::min(amplitude, (1 - cos(time / rising_time * PI)) / 2);
+			}
+			if (pulse_width - time < falling_time) {
+				amplitude = std::min(amplitude, (1 - cos((pulse_width - time) / falling_time * PI)) / 2);
+			}
+			amplitude *= amp;
+			return uint8_t(amplitude);
+		}
+		else
+			return 0;
+	}
+};
+
 struct CustomWaveform :public Waveform {
 	std::vector<uint8_t> wave;
 	double sample_rate;
@@ -171,6 +200,9 @@ struct ChannelInfo {
 
 struct ChannelInfo* GetChannelInfoSquare(int64_t n_pulses, double rising_time, double amp, double pulse_width, double period, double falling_time) {
 	return new ChannelInfo(n_pulses, new SquareWaveform(rising_time, amp, pulse_width, period, falling_time));
+}
+struct ChannelInfo* GetChannelInfoSine(int64_t n_pulses, double rising_time, double amp, double pulse_width, double period, double falling_time) {
+	return new ChannelInfo(n_pulses, new SineWaveform(rising_time, amp, pulse_width, period, falling_time));
 }
 struct ChannelInfo* GetChannelInfoCustom(int64_t n_pulses, const char* wave, size_t wave_len, double sample_rate) {
 	return new ChannelInfo(n_pulses, new CustomWaveform(wave, wave_len, sample_rate));

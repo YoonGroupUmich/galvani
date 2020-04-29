@@ -357,7 +357,7 @@ class WaveFormPanel(wx.StaticBoxSizer):
         font = wx.Font(wx.FontInfo(10).Bold())
         self.label = label
         common = wx.BoxSizer(wx.HORIZONTAL)
-        wf_types = ['Square / Trapezoid', 'Custom']
+        wf_types = ['Square / Trapezoid', 'Sinusoidal', 'Custom']
         self.waveform_type_choice = wx.Choice(p, -1, choices=wf_types)
         try:
             sel = wf_types.index(init_dict['type'])
@@ -412,18 +412,30 @@ class WaveFormPanel(wx.StaticBoxSizer):
         wf = self.detail.get_waveform()
         if n_pulses is None:
             n_pulses = self.num_of_pulses.GetValue()
-        if isinstance(wf, galvani.SquareWaveform):
+        wf_type = self.waveform_type_choice.GetSelection()
+        if wf_type == 0:
+            wf = self.p_square.get_waveform()
             if wf.period:
                 return galvani.GetChannelInfoSquare(n_pulses, wf.rising_time, wf.amp, wf.pulse_width,
                                                     wf.period, wf.falling_time)
             else:
                 return galvani.ffi.NULL
-        elif isinstance(wf, galvani.CustomWaveform):
+        elif wf_type == 1:
+            wf = self.p_square.get_waveform()
+            if wf.period:
+                return galvani.GetChannelInfoSine(n_pulses, wf.rising_time, wf.amp, wf.pulse_width,
+                                                  wf.period, wf.falling_time)
+            else:
+                return galvani.ffi.NULL
+        elif wf_type == 2:
+            wf = self.p_custom.get_waveform()
             if wf.wave:
                 wf_data = np.array(wf.wave, dtype=np.uint8).tobytes()
                 return galvani.GetChannelInfoCustom(n_pulses, wf_data, len(wf_data), wf.sample_rate)
             else:
                 return galvani.ffi.NULL
+        else:
+            raise TypeError('Waveform type not supported')
 
     def to_dict(self) -> dict:
         ret = {'label': self.label,
@@ -434,8 +446,9 @@ class WaveFormPanel(wx.StaticBoxSizer):
 
     def on_preview(self, event: wx.Event):
         n_pulses = self.num_of_pulses.GetValue()
-        wf = self.detail.get_waveform()
-        if isinstance(wf, galvani.SquareWaveform):
+        wf_type = self.waveform_type_choice.GetSelection()
+        if wf_type == 0:
+            wf = self.p_square.get_waveform()
             if wf.period <= 0:
                 wx.MessageBox(
                     'Error: invalid period %d. Period should be positive.' % wf.period,
@@ -456,11 +469,33 @@ class WaveFormPanel(wx.StaticBoxSizer):
                                    x_offset + wf.period * 1000))
                         ys.extend((wf.amp, wf.amp, 0, 0))
                     else:
-                        xs.extend((x_offset + wf.rising_time * wf.pulse_width / (wf.rising_time + wf.falling_time) * 1000,
-                                   x_offset + wf.pulse_width * 1000,
-                                   x_offset + wf.period * 1000))
+                        xs.extend(
+                            (x_offset + wf.rising_time * wf.pulse_width / (wf.rising_time + wf.falling_time) * 1000,
+                             x_offset + wf.pulse_width * 1000,
+                             x_offset + wf.period * 1000))
                         ys.extend((wf.amp * wf.pulse_width / (wf.rising_time + wf.falling_time), 0, 0))
-        elif isinstance(wf, galvani.CustomWaveform):
+        elif wf_type == 1:
+            wf = self.p_square.get_waveform()
+            if wf.period <= 0:
+                wx.MessageBox(
+                    'Error: invalid period %d. Period should be positive.' % wf.period,
+                    'Preview for ' + self.label)
+                return
+            else:
+                xs = np.linspace(0, n_pulses * wf.period, 100000)
+                ys = np.zeros(xs.shape)
+                xps = xs % wf.period
+                print(xps)
+                ys[xps < wf.pulse_width] = 1
+                rising_phase = xps < wf.rising_time * min(1, wf.pulse_width / (
+                        wf.rising_time + wf.falling_time))
+                ys[rising_phase] = (1 - np.cos(xps[rising_phase] / wf.rising_time * np.pi)) / 2
+                falling_phase = np.logical_and(wf.pulse_width - xps < wf.falling_time * min(1, wf.pulse_width / (
+                        wf.rising_time + wf.falling_time)), xps < wf.pulse_width)
+                ys[falling_phase] = (1 - np.cos((wf.pulse_width - xps[falling_phase]) / wf.falling_time * np.pi)) / 2
+                ys *= wf.amp
+        elif wf_type == 2:
+            wf = self.p_custom.get_waveform()
             if not wf.wave:
                 wx.MessageBox(
                     'Error: invalid custom waveform.',
@@ -480,7 +515,7 @@ class WaveFormPanel(wx.StaticBoxSizer):
     def on_type(self, event: wx.Event):
         obj = event.GetEventObject()
         assert isinstance(obj, wx.Choice)
-        if obj.GetSelection() == 0:  # Square Wave
+        if obj.GetSelection() != 2:  # Square Wave or Sine Wave
             self.Hide(self.p_custom)
             self.Show(self.p_square)
             self.Layout()

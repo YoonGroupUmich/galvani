@@ -5,6 +5,7 @@ ffibuilder = FFI()
 # globals needed to use the shared object. It must be in valid C syntax.
 ffibuilder.cdef('''
 struct ChannelInfo* GetChannelInfoSquare(int64_t n_pulses, double rising_time, double amp, double pulse_width, double period, double falling_time);
+struct ChannelInfo* GetChannelInfoSine(int64_t n_pulses, double rising_time, double amp, double pulse_width, double period, double falling_time);
 struct ChannelInfo* GetChannelInfoCustom(int64_t n_pulses, const char* wave, size_t wave_len, double sample_rate);
 struct GalvaniDevice* GetGalvaniDevice(const char* dev_name, size_t dev_name_len, uint8_t offset);
 void StartGalvaniDevice(struct GalvaniDevice* gd);

@@ -1,7 +1,7 @@
 #! /usr/bin/env python
 
-from _galvanini.lib import (GetChannelInfoSquare, GetChannelInfoCustom, GetGalvaniDevice, StartGalvaniDevice,
-                            StopGalvaniDevice, GalvaniDeviceSetChannel, GalvaniDeviceGetStatus)
+from _galvanini.lib import (GetChannelInfoSquare, GetChannelInfoSine, GetChannelInfoCustom, GetGalvaniDevice,
+                            StartGalvaniDevice, StopGalvaniDevice, GalvaniDeviceSetChannel, GalvaniDeviceGetStatus)
 from _galvanini import ffi
 
 
