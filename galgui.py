@@ -14,7 +14,7 @@ import numpy as np
 
 import galvani
 
-__version__ = '0.0.1'
+__version__ = '1.0.0'
 
 logging.basicConfig(level=os.environ.get("LOGLEVEL", "DEBUG"))
 galgui_config = configparser.ConfigParser()
@@ -94,7 +94,7 @@ class ChannelCtrl:
         self.channel_label.SetLabel(self.channel_name)
 
     def to_dict(self):
-        return {'ch':self.ch, 'channel_name': self.channel_name, 'waveform': self.waveform,
+        return {'ch': self.ch, 'channel_name': self.channel_name, 'waveform': self.waveform,
                 'continuous': self.continuous}
 
     def from_dict(self, d: dict):
@@ -247,7 +247,7 @@ class SquareWavePanel(wx.FlexGridSizer):
             return
         if val > self.period:
             val = self.period
-        val = round(val,2) if val > 0 else 0
+        val = round(val, 2) if val > 0 else 0
         if self.pulse_width != val:
             self.pulse_width = val
             self.modify_callback()
@@ -261,7 +261,7 @@ class SquareWavePanel(wx.FlexGridSizer):
             self.period_text.SetValue('%.2f' % self.period)
             event.Skip()
             return
-        val = round(val,2) if val > 0 else 0
+        val = round(val, 2) if val > 0 else 0
         if self.period != val:
             self.period = val
             if val < self.pulse_width:
@@ -278,7 +278,7 @@ class SquareWavePanel(wx.FlexGridSizer):
             self.rise_time_text.SetValue('%.2f' % self.rise_time)
             event.Skip()
             return
-        val = round(val,2) if val > 0 else 0
+        val = round(val, 2) if val > 0 else 0
         if self.rise_time != val:
             self.rise_time = val
             self.modify_callback()
@@ -292,7 +292,7 @@ class SquareWavePanel(wx.FlexGridSizer):
             self.fall_time_text.SetValue('%.2f' % self.fall_time)
             event.Skip()
             return
-        val = round(val,2) if val > 0 else 0
+        val = round(val, 2) if val > 0 else 0
         if self.fall_time != val:
             self.fall_time = val
             self.modify_callback()
@@ -319,7 +319,7 @@ class CustomWavePanel(wx.FlexGridSizer):
         self.file_picker.Bind(wx.EVT_FILEPICKER_CHANGED, self.on_file)
         self.Add(self.file_picker, 0, wx.EXPAND)
         self.sample_rate_text = wx.TextCtrl(parent, -1, '%f' % self.sample_rate,
-                                          style=wx.TE_PROCESS_ENTER)
+                                            style=wx.TE_PROCESS_ENTER)
         self.sample_rate_text.SetToolTip(
             'Range: 0~13kSa/s')
         self.sample_rate_text.Bind(wx.EVT_KILL_FOCUS, self.on_sample_rate)
@@ -665,7 +665,15 @@ class MainFrame(wx.Frame):
         self.channels_ui = channels_ui
         if galgui_config['GalGUI']['show_all_channels'] == 'yes':
             channel_panel = wx.Notebook(p)
-            channel_map = {'Shank 1 (1/2)':[108,115,109,114,110,113,111,112,104,119,105,118,106,117,107,116],'Shank 1 (2/2)':[100,123,101,122,102,121,103,120,96,127,97,126,98,125,99,124],'Shank 2 (1/2)':[80,79,81,78,82,77,83,76,84,75,85,74,86,73,87,72],'Shank 2 (2/2)':[88,71,89,70,90,69,91,68,92,67,93,66,94,65,95,64],'Shank 3 (1/2)':[15,16,14,17,13,18,12,19,11,20,10,21,9,22,8,23],'Shank 3 (2/2)':[7,24,6,25,5,26,4,27,3,28,2,29,1,30,0,31],'Shank 4 (1/2)':[51,44,50,45,49,46,48,47,55,40,54,41,53,42,52,43],'Shank 4 (2/2)':[59,36,58,37,57,38,56,39,63,32,62,33,61,34,60,35]}
+            channel_map = {
+                'Shank 1 (1/2)': [108, 115, 109, 114, 110, 113, 111, 112, 104, 119, 105, 118, 106, 117, 107, 116],
+                'Shank 1 (2/2)': [100, 123, 101, 122, 102, 121, 103, 120, 96, 127, 97, 126, 98, 125, 99, 124],
+                'Shank 2 (1/2)': [80, 79, 81, 78, 82, 77, 83, 76, 84, 75, 85, 74, 86, 73, 87, 72],
+                'Shank 2 (2/2)': [88, 71, 89, 70, 90, 69, 91, 68, 92, 67, 93, 66, 94, 65, 95, 64],
+                'Shank 3 (1/2)': [15, 16, 14, 17, 13, 18, 12, 19, 11, 20, 10, 21, 9, 22, 8, 23],
+                'Shank 3 (2/2)': [7, 24, 6, 25, 5, 26, 4, 27, 3, 28, 2, 29, 1, 30, 0, 31],
+                'Shank 4 (1/2)': [51, 44, 50, 45, 49, 46, 48, 47, 55, 40, 54, 41, 53, 42, 52, 43],
+                'Shank 4 (2/2)': [59, 36, 58, 37, 57, 38, 56, 39, 63, 32, 62, 33, 61, 34, 60, 35]}
             for text, chs in channel_map.items():
                 page_panel = wx.Panel(channel_panel)
                 channel_box = wx.FlexGridSizer(17, 7, 5, 5)
@@ -864,9 +872,11 @@ class MainFrame(wx.Frame):
                 gs.Add(rb_int)
                 gs.Add(t_int)
                 s.Add(gs, wx.SizerFlags().Expand().Border(wx.ALL, 5))
-                save = wx.CheckBox(bias_dialog, -1, "Save bias settings and don't ask again. (You can clear this by setting bias to empty in config.ini)")
+                save = wx.CheckBox(bias_dialog, -1,
+                                   "Save bias settings and don't ask again. (You can clear this by setting bias to empty in config.ini)")
                 s.Add(save, wx.SizerFlags().Expand().Border(wx.ALL, 5))
-                s.Add(bias_dialog.CreateSeparatedButtonSizer(wx.OK | wx.CANCEL), wx.SizerFlags().Expand().Border(wx.ALL, 5))
+                s.Add(bias_dialog.CreateSeparatedButtonSizer(wx.OK | wx.CANCEL),
+                      wx.SizerFlags().Expand().Border(wx.ALL, 5))
                 bias_dialog.SetSizerAndFit(s)
                 if bias_dialog.ShowModal() != wx.ID_OK:
                     return
