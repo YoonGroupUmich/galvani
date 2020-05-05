@@ -19,6 +19,7 @@ __version__ = '1.0.0'
 logging.basicConfig(level=os.environ.get("LOGLEVEL", "DEBUG"))
 galgui_config = configparser.ConfigParser()
 galgui_config.read('config.ini')
+bias = -1
 
 
 class LabeledCtrl(wx.BoxSizer):
@@ -145,10 +146,11 @@ class ChannelCtrl:
 
 class SquareWavePanel(wx.FlexGridSizer):
     def __init__(self, parent, modify_callback, init_dict=None):
+        global bias
         wx.FlexGridSizer.__init__(self, 2, 5, 5, 5)
         for i in range(5):
             self.AddGrowableCol(i, 1)
-        self.Add(wx.StaticText(parent, -1, 'Amplitude (code value)'), 0, wx.EXPAND)
+        self.Add(wx.StaticText(parent, -1, 'Amplitude (\u03bcA)' if 0 <= bias < 127 else 'Amplitude (code)'), 0, wx.EXPAND)
         self.Add(wx.StaticText(parent, -1, 'Period (ms)'), 0, wx.EXPAND)
         self.Add(wx.StaticText(parent, -1, 'Pulse Width (ms)'), 0, wx.EXPAND)
         self.Add(wx.StaticText(parent, -1, 'Rising Time (ms)'), 0, wx.EXPAND)
@@ -177,8 +179,12 @@ class SquareWavePanel(wx.FlexGridSizer):
 
         self.amp_text = wx.TextCtrl(parent, -1, '%d' % self.amp,
                                     style=wx.TE_PROCESS_ENTER)
-        self.amp_text.SetToolTip(
-            'Range: 0~255\u03bcA, Precision: \u00b10.5\u03bcA')
+        if 0 <= bias < 127:
+            self.amp_text.SetToolTip(
+                'Range: 0~100\u03bcA, Precision: %.3f\u03bcA' % galvani.lsb[bias])
+        else:
+            self.amp_text.SetToolTip(
+                'Range: 0~255')
         self.amp_text.Bind(wx.EVT_KILL_FOCUS, self.on_amp)
         self.amp_text.Bind(wx.EVT_TEXT_ENTER, self.on_amp)
         self.Add(self.amp_text, 0, wx.EXPAND)
@@ -225,17 +231,25 @@ class SquareWavePanel(wx.FlexGridSizer):
                 'period': self.period, 'rise_time': self.rise_time, 'fall_time': self.fall_time}
 
     def on_amp(self, event: wx.Event):
+        global bias
         try:
             val = float(self.amp_text.GetValue())
         except ValueError:
             self.amp_text.SetValue(str(self.amp))
             event.Skip()
             return
-        val = 0 if val < 0 else 255 if val > 255 else round(val)
-        if self.amp != val:
-            self.amp = val
+        if 0 <= bias < 127:
+            code = val / galvani.lsb[bias]
+            code = 0 if code < 0 else (100 / galvani.lsb[bias]) if val > (100 / galvani.lsb[bias]) else code
+            val = 0 if val < 0 else 100 if val > 100 else val
+            self.amp_text.SetValue('%.1f' % val)
+        else:
+            val = 0 if val < 0 else 255 if val > 255 else val
+            code = val
+            self.amp_text.SetValue('%d' % val)
+        if self.amp != code:
+            self.amp = code
             self.modify_callback()
-        self.amp_text.SetValue('%d' % self.amp)
         event.Skip()
 
     def on_pulse_width(self, event: wx.Event):
@@ -329,8 +343,12 @@ class CustomWavePanel(wx.FlexGridSizer):
         self.modify_callback = modify_callback
 
     def on_file(self, event: wx.Event):
+        global bias
         with open(self.file_picker.GetPath()) as fp:
-            self.wave = [float(x) for x in fp.read().split()]
+            if 0 <= bias < 127:
+                self.wave = [float(x) / galvani.lsb[bias] for x in fp.read().split()]
+            else:
+                self.wave = [float(x) for x in fp.read().split()]
 
     def on_sample_rate(self, event: wx.Event):
         try:
@@ -446,6 +464,7 @@ class WaveFormPanel(wx.StaticBoxSizer):
         return ret
 
     def on_preview(self, event: wx.Event):
+        global bias
         n_pulses = self.num_of_pulses.GetValue()
         wf_type = self.waveform_type_choice.GetSelection()
         if wf_type == 0:
@@ -508,9 +527,15 @@ class WaveFormPanel(wx.StaticBoxSizer):
         else:
             raise TypeError('Waveform type not supported')
         plt.figure(num='Preview for ' + self.label)
+        if 0 <= bias < 127:
+            ys = np.array(ys, dtype=np.float32)
+            ys *= galvani.lsb[bias]
         plt.plot(xs, ys, label=self.label)
         plt.xlabel('time (ms)')
-        plt.ylabel('amplitude (code value)')
+        if 0 <= bias < 127:
+            plt.ylabel('amplitude (\u03bcA)')
+        else:
+            plt.ylabel('amplitude (code)')
         plt.show()
 
     def on_type(self, event: wx.Event):
@@ -850,6 +875,7 @@ class MainFrame(wx.Frame):
                 'Channels already up to date')
 
     def on_connect(self, connect=None):
+        global bias
         if connect is None:
             connect = self.connect_button.GetLabel() == 'Connect'
         if connect:
@@ -857,32 +883,6 @@ class MainFrame(wx.Frame):
                 return
             device_name = self.device_choice.GetValue()
             galgui_config['GalGUI']['device_name'] = device_name
-            try:
-                bias = int(galgui_config['Galvani']['bias'])
-            except ValueError:
-                bias_dialog = wx.Dialog(self, -1, 'Set Bias')
-                s = wx.BoxSizer(wx.VERTICAL)
-                gs = wx.GridSizer(2, 2, 5, 5)
-                rb_ext = wx.RadioButton(bias_dialog, -1, 'External Bias')
-                rb_int = wx.RadioButton(bias_dialog, -1, 'Internal Bias')
-                t_int = wx.SpinCtrl(bias_dialog, min=0, max=127)
-                t_int.Bind(wx.EVT_SPINCTRL, lambda _: rb_int.SetValue(True))
-                gs.Add(rb_ext)
-                gs.AddSpacer(0)
-                gs.Add(rb_int)
-                gs.Add(t_int)
-                s.Add(gs, wx.SizerFlags().Expand().Border(wx.ALL, 5))
-                save = wx.CheckBox(bias_dialog, -1,
-                                   "Save bias settings and don't ask again. (You can clear this by setting bias to empty in config.ini)")
-                s.Add(save, wx.SizerFlags().Expand().Border(wx.ALL, 5))
-                s.Add(bias_dialog.CreateSeparatedButtonSizer(wx.OK | wx.CANCEL),
-                      wx.SizerFlags().Expand().Border(wx.ALL, 5))
-                bias_dialog.SetSizerAndFit(s)
-                if bias_dialog.ShowModal() != wx.ID_OK:
-                    return
-                bias = 0x80 if rb_ext.GetValue() else int(t_int.GetValue())
-                if save.GetValue():
-                    galgui_config['Galvani']['bias'] = str(bias)
             logging.getLogger('GalGUI').info('Bias set to %d', bias)
             with open('config.ini', 'w') as fp:
                 galgui_config.write(fp)
@@ -957,6 +957,7 @@ class MainFrame(wx.Frame):
 
     def on_close(self, event: wx.CloseEvent):
         self.on_connect(False)
+        exit(0)
         event.Skip()
 
     def on_save_config(self, event: wx.Event):
@@ -1090,5 +1091,41 @@ class MainFrame(wx.Frame):
 
 if __name__ == '__main__':
     app = wx.App()
+    try:
+        bias = int(galgui_config['Galvani']['bias'])
+    except ValueError:
+        bias_dialog = wx.Dialog(None, -1, 'Set Bias')
+        s = wx.BoxSizer(wx.VERTICAL)
+        gs = wx.FlexGridSizer(2, 3, 5, 5)
+        rb_ext = wx.RadioButton(bias_dialog, -1, 'External Bias')
+        rb_int = wx.RadioButton(bias_dialog, -1, 'Internal Bias')
+        t_int = wx.SpinCtrl(bias_dialog, min=0, max=126)
+        t_bias = wx.StaticText(bias_dialog, -1, 'LSB: %.3f\u03bcA, Full scale range: 0~%.1f\u03bcA' % (galvani.lsb[0], galvani.lsb[0] * 255))
+        def bias_dialog_spinctrl(_):
+            rb_int.SetValue(True)
+            lsb = galvani.lsb[int(t_int.GetValue())]
+            t_bias.SetLabel('LSB: %.3f\u03bcA, Full scale range: 0~%.1f\u03bcA' % (lsb, lsb * 255))
+        t_int.Bind(wx.EVT_SPINCTRL, bias_dialog_spinctrl)
+        gs.Add(rb_ext)
+        gs.AddSpacer(0)
+        gs.AddSpacer(0)
+        gs.Add(rb_int)
+        gs.Add(t_int)
+        gs.Add(t_bias)
+
+        s.Add(gs, wx.SizerFlags().Expand().Border(wx.ALL, 5))
+        save = wx.CheckBox(bias_dialog, -1,
+                           "Save bias settings and don't ask again. (You can clear this by setting bias to empty in config.ini)")
+        s.Add(save, wx.SizerFlags().Expand().Border(wx.ALL, 5))
+        s.Add(bias_dialog.CreateSeparatedButtonSizer(wx.OK | wx.CANCEL),
+              wx.SizerFlags().Expand().Border(wx.ALL, 5))
+        bias_dialog.SetSizerAndFit(s)
+        if bias_dialog.ShowModal() != wx.ID_OK:
+            exit(-1)
+        bias = 0x80 if rb_ext.GetValue() else int(t_int.GetValue())
+        if save.GetValue():
+            galgui_config['Galvani']['bias'] = str(bias)
+            with open('config.ini', 'w') as fp:
+                galgui_config.write(fp)
     MainFrame().Show()
     sys.exit(app.MainLoop())
