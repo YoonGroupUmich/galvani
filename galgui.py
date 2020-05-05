@@ -14,6 +14,8 @@ import numpy as np
 
 import galvani
 
+from sys import exit
+
 __version__ = '1.0.0'
 
 logging.basicConfig(level=os.environ.get("LOGLEVEL", "DEBUG"))
