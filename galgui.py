@@ -353,6 +353,7 @@ class CustomWavePanel(wx.FlexGridSizer):
 class WaveFormPanel(wx.StaticBoxSizer):
     def __init__(self, parent, label, modify_callback, init_dict=None):
         wx.StaticBoxSizer.__init__(self, wx.VERTICAL, parent, label)
+        self.parent = parent
         p = self.GetStaticBox()
         font = wx.Font(wx.FontInfo(10).Bold())
         self.label = label
@@ -518,13 +519,12 @@ class WaveFormPanel(wx.StaticBoxSizer):
         if obj.GetSelection() != 2:  # Square Wave or Sine Wave
             self.Hide(self.p_custom)
             self.Show(self.p_square)
-            self.Layout()
             self.detail = self.p_square
         else:
             self.Hide(self.p_square)
             self.Show(self.p_custom)
-            self.Layout()
             self.detail = self.p_custom
+        self.parent.Layout()
         self.modify_callback(self.label)
 
 
