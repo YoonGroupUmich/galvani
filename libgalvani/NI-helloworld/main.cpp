@@ -215,21 +215,19 @@ struct GalvaniDevice {
 	std::thread worker;
 	std::atomic_bool stopped;
 	std::atomic_bool error;
-	uint8_t offset;
-	GalvaniDevice(const char* dev_name, size_t dev_name_len, uint8_t offset) :dev_name(dev_name, dev_name + dev_name_len), waveform_array(128), stopped(true), error(false), offset(offset) {}
+	uint8_t bias;
+	GalvaniDevice(const char* dev_name, size_t dev_name_len, uint8_t bias) :dev_name(dev_name, dev_name + dev_name_len), waveform_array(128), stopped(true), error(false), bias(bias) {}
 };
 
-struct GalvaniDevice* GetGalvaniDevice(const char* dev_name, size_t dev_name_len, uint8_t offset) {
-	return new GalvaniDevice(dev_name, dev_name_len, offset);
+struct GalvaniDevice* GetGalvaniDevice(const char* dev_name, size_t dev_name_len, uint8_t bias) {
+	return new GalvaniDevice(dev_name, dev_name_len, bias);
 }
 
 // Command:
 // | 10101010 | 00xxxxxx | xxxxxxxx | xxxxxxxx | xxxxxxxx | xxxxxxxx | xxxxxxxx | 10101011 |
 //                |\---/   |\-----/   \ amp0 /   \ amp1 /   \ amp2 /   \ amp3 /
-//                |  |     |   \- bias_amp (7 bit)
-//                |  |     \- bias_sel (1 bit)
-//                |  \- addr (5 bits)
-//                \- mode (1 bit)
+//     mode (1 bit)  |     |  bias_amp (7 bit)
+//        addr (5 bits)   bias_sel (1 bit)
 
 void galvaniNIWorker(struct GalvaniDevice* gd) {
 	std::unique_ptr<struct Galvani> dev(galvani_init_ni(gd->dev_name.c_str()));
@@ -242,12 +240,12 @@ void galvaniNIWorker(struct GalvaniDevice* gd) {
 	int c_ch = 0;
 	std::vector<uint8_t> command_buffer;
 	command_buffer.reserve(8 * size_t(DELAY * SAMPLES_PER_SEC));
-	if (gd->offset != 0xff) {
+	if (gd->bias != 0xff) {
 		// Offset command is the very first command. Send it multiple times in case the board is not syncronized
 		for (int i = 0; i < 8; ++i) {
 			command_buffer.emplace_back(0xaa);
 			command_buffer.emplace_back(0x00);
-			command_buffer.emplace_back(gd->offset);
+			command_buffer.emplace_back(gd->bias);
 			command_buffer.emplace_back(0x00);
 			command_buffer.emplace_back(0x00);
 			command_buffer.emplace_back(0x00);

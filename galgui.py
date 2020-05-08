@@ -23,6 +23,39 @@ galgui_config = configparser.ConfigParser()
 galgui_config.read('config.ini')
 bias = -1
 
+"""
++-  MainFrame  --------------------------------------------------------+
+| +- MainFrame.setup_sizer -+ +- MainFrame.channel_panel ------------+ |
+| |                         | | [ ChannelCtrl                      ] | |
+| |                         | | [ ChannelCtrl                      ] | |
+| +-------------------------+ | [ ChannelCtrl                      ] | |
+|                             | [ ChannelCtrl                      ] | |
+| +- WaveformManager -------+ | [ ChannelCtrl                      ] | |
+| |                    [  ] | | [ ChannelCtrl                      ] | |
+| | +- WaveFormPanel -----+ | | [ ChannelCtrl                      ] | |
+| | | [  ] [  ]   [  ][X] | | | [ ChannelCtrl                      ] | |
+| | | [ SquareWavePanel ] | | | [ ChannelCtrl                      ] | |
+| | | [ CustomWavePanel ] | | | [ ChannelCtrl                      ] | |
+| | +---------------------+ | | [ ChannelCtrl                      ] | |
+| | +- WaveFormPanel -----+ | | [ ChannelCtrl                      ] | |
+| | | [  ] [  ]   [  ][X] | | +--------------------------------------+ |
+| | | [ SquareWavePanel ] | | [ MainFrame.extra_buttons ]              |
+| | | [ CustomWavePanel ] | |                                          |
+| | +---------------------+ | +- MainFrame.log_box ------------------+ |
+| | +- WaveFormPanel -----+ | |                                      | |
+| | | [  ] [  ]   [  ][X] | | |                                      | |
+| | | [ SquareWavePanel ] | | |                                      | |
+| | | [ CustomWavePanel ] | | |                                      | |
+| +-------------------------+ +--------------------------------------+ |
++----------------------------------------------------------------------+
+
+See galvani-ni.h for API documentation.
+
+This GUI is a wrapper around the high level API for Galvani
+When user clicks "Connect", GUI will create GalvaniDevice instance. When user clicks "Disconnect", GUI will stop GalvaniDevice instance.
+When user changes any parameter of a channel, GUI will create a ChannelInfo from parameters, and set the corresponding channel to that ChannelInfo.
+On idle, GUI will poll status of GalvaniDevice and update status display accordingly. It will automatically disconnect on fail.
+"""
 
 class LabeledCtrl(wx.BoxSizer):
     def __init__(self, control, parent=None, ident=-1, label=''):
@@ -32,6 +65,7 @@ class LabeledCtrl(wx.BoxSizer):
 
 
 class ChannelCtrl:
+    "ChannelCtrl manages GUI logic related to each channel."
     _error_color = wx.Colour(255, 172, 172)
     _warning_color = wx.Colour(206, 206, 0)
     _normal_color = wx.Colour(91, 214, 255)
@@ -147,6 +181,7 @@ class ChannelCtrl:
 
 
 class SquareWavePanel(wx.FlexGridSizer):
+    "SquareWavePanel manages GUI logic related to square wave and sine wave. It handles input verification."
     def __init__(self, parent, modify_callback, init_dict=None):
         global bias
         wx.FlexGridSizer.__init__(self, 2, 5, 5, 5)
@@ -317,6 +352,7 @@ class SquareWavePanel(wx.FlexGridSizer):
 
 
 class CustomWavePanel(wx.FlexGridSizer):
+    "CustomWavePanel manages GUI logic related to custom wave and sine wave. It handles open and read custom waveform from cwave file."
     def __init__(self, parent, modify_callback, init_dict=None):
         wx.FlexGridSizer.__init__(self, 2, 2, 5, 5)
         self.AddGrowableCol(0, 4)
@@ -369,8 +405,12 @@ class CustomWavePanel(wx.FlexGridSizer):
     def get_waveform(self) -> galvani.CustomWaveform:
         return galvani.CustomWaveform(self.wave, self.sample_rate)
 
+    def to_dict(self):
+        return {'sample_rate': self.sample_rate}
+
 
 class WaveFormPanel(wx.StaticBoxSizer):
+    "WaveFormPanel manages GUI logic related to a single waveform. It contains either a SquareWavePanel or a CustomWavePanel."
     def __init__(self, parent, label, modify_callback, init_dict=None):
         wx.StaticBoxSizer.__init__(self, wx.VERTICAL, parent, label)
         self.parent = parent
@@ -430,6 +470,7 @@ class WaveFormPanel(wx.StaticBoxSizer):
         event.Skip()
 
     def channel_info(self, n_pulses=None):
+        "Creates ChannelInfo from parameters. Optionally override the n_pulses (for continuous trigger)."
         wf = self.detail.get_waveform()
         if n_pulses is None:
             n_pulses = self.num_of_pulses.GetValue()
@@ -556,6 +597,7 @@ class WaveFormPanel(wx.StaticBoxSizer):
 
 
 class WaveformManager(wx.ScrolledWindow):
+    "WaveformManager contains multiple WaveFormPanel, and handles waveform creation / deletion."
     def __init__(self, parent, mf, ident=-1):
         wx.ScrolledWindow.__init__(self, parent, ident,
                                    style=wx.VSCROLL | wx.ALWAYS_SHOW_SB)
@@ -642,6 +684,7 @@ class WaveformManager(wx.ScrolledWindow):
 
 
 class MainFrame(wx.Frame):
+    "MainFrame is the main window. ChannelCtrl are directly managed by MainFrame, in the MainFrame.channels_ui array"
     def __init__(self, parent=None, ident=-1):
         wx.Frame.__init__(
             self, parent, ident,
@@ -1093,6 +1136,8 @@ class MainFrame(wx.Frame):
 
 if __name__ == '__main__':
     app = wx.App()
+
+    # Show the bias selection dialog if it is not saved in config.ini
     try:
         bias = int(galgui_config['Galvani']['bias'])
     except ValueError:
@@ -1129,5 +1174,7 @@ if __name__ == '__main__':
             galgui_config['Galvani']['bias'] = str(bias)
             with open('config.ini', 'w') as fp:
                 galgui_config.write(fp)
+
+    # Show main window
     MainFrame().Show()
     sys.exit(app.MainLoop())
