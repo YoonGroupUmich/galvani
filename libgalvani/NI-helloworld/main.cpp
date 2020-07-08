@@ -41,7 +41,7 @@ struct Galvani* galvani_init_ni(const char* ni_device) {
 }
 
 	DAQmxErrChk(DAQmxCreateTask("", &ret->taskHandle));
-	DAQmxErrChk(DAQmxCreateDOChan(ret->taskHandle, (ni_device_str + "/Port3").c_str(), "", DAQmx_Val_ChanForAllLines));
+	DAQmxErrChk(DAQmxCreateDOChan(ret->taskHandle, (ni_device_str + "/Port0").c_str(), "", DAQmx_Val_ChanForAllLines));
 	DAQmxErrChk(DAQmxCfgPipelinedSampClkTiming(ret->taskHandle, "", 4000000.0, DAQmx_Val_Rising, DAQmx_Val_ContSamps, 1000));
 	DAQmxErrChk(DAQmxSetPauseTrigType(ret->taskHandle, DAQmx_Val_DigLvl));
 	DAQmxErrChk(DAQmxSetDigLvlPauseTrigSrc(ret->taskHandle, (ni_device_str + "/PFI2").c_str()));

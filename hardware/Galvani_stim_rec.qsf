@@ -1,0 +1,157 @@
+# -------------------------------------------------------------------------- #
+#
+# Copyright (C) 1991-2013 Altera Corporation
+# Your use of Altera Corporation's design tools, logic functions 
+# and other software and tools, and its AMPP partner logic 
+# functions, and any output files from any of the foregoing 
+# (including device programming or simulation files), and any 
+# associated documentation or information are expressly subject 
+# to the terms and conditions of the Altera Program License 
+# Subscription Agreement, Altera MegaCore Function License 
+# Agreement, or other applicable license agreement, including, 
+# without limitation, that your use is for the sole purpose of 
+# programming logic devices manufactured by Altera and sold by 
+# Altera or its authorized distributors.  Please refer to the 
+# applicable agreement for further details.
+#
+# -------------------------------------------------------------------------- #
+#
+# Quartus II 64-Bit
+# Version 13.1.0 Build 162 10/23/2013 SJ Web Edition
+# Date created = 18:09:01  July 07, 2020
+#
+# -------------------------------------------------------------------------- #
+#
+# Notes:
+#
+# 1) The default values for assignments are stored in the file:
+#		Galvani_stim_rec_assignment_defaults.qdf
+#    If this file doesn't exist, see file:
+#		assignment_defaults.qdf
+#
+# 2) Altera recommends that you do not modify this file. This
+#    file is updated automatically by the Quartus II software
+#    and any changes you make may be lost or overwritten.
+#
+# -------------------------------------------------------------------------- #
+
+
+set_global_assignment -name FAMILY "MAX II"
+set_global_assignment -name DEVICE EPM2210F256C5
+set_global_assignment -name TOP_LEVEL_ENTITY Galvani_stim_rec
+set_global_assignment -name ORIGINAL_QUARTUS_VERSION 13.1
+set_global_assignment -name PROJECT_CREATION_TIME_DATE "18:09:01  JULY 07, 2020"
+set_global_assignment -name LAST_QUARTUS_VERSION 13.1
+set_global_assignment -name PROJECT_OUTPUT_DIRECTORY output_files
+set_global_assignment -name ERROR_CHECK_FREQUENCY_DIVISOR "-1"
+set_global_assignment -name MIN_CORE_JUNCTION_TEMP 0
+set_global_assignment -name MAX_CORE_JUNCTION_TEMP 85
+set_global_assignment -name VERILOG_FILE rec/tb_afe.v
+set_global_assignment -name VERILOG_FILE rec/spi_slave_z.v
+set_global_assignment -name VERILOG_FILE rec/spi_master256.v
+set_global_assignment -name VERILOG_FILE rec/spi_master_z.v
+set_global_assignment -name VERILOG_FILE rec/spi_master_hs.v
+set_global_assignment -name VERILOG_FILE rec/spi_master.v
+set_global_assignment -name VERILOG_FILE rec/sine_gen.v
+set_global_assignment -name VERILOG_FILE rec/sin.v
+set_global_assignment -name VERILOG_FILE rec/PB_Debouncer.v
+set_global_assignment -name VERILOG_FILE rec/nsl12.v
+set_global_assignment -name VERILOG_FILE rec/interp_filt.v
+set_global_assignment -name VERILOG_FILE rec/command_selector.v
+set_global_assignment -name VERILOG_FILE rec/CLK_DIV.v
+set_global_assignment -name VERILOG_FILE rec/AFE_256CH.v
+set_global_assignment -name VERILOG_FILE stim/STIM_SPI.v
+set_global_assignment -name VERILOG_FILE stim/SPI_MASTER.v
+set_global_assignment -name VERILOG_FILE stim/INPUT_RECV.v
+set_global_assignment -name VERILOG_FILE stim/INPUT_GEN.v
+set_global_assignment -name VERILOG_FILE stim/GALVANI_STIM_tb.v
+set_global_assignment -name VERILOG_FILE stim/GALVANI_STIM.v
+set_global_assignment -name VERILOG_FILE stim/CMD_GEN.v
+set_global_assignment -name VERILOG_FILE stim/CLK_DIVIDER.v
+set_global_assignment -name VERILOG_FILE Galvani_stim_rec.v
+set_global_assignment -name STRATIX_DEVICE_IO_STANDARD "3.3-V LVTTL"
+set_location_assignment PIN_J12 -to CLK
+set_location_assignment PIN_C10 -to CSb
+set_location_assignment PIN_K1 -to FIFO_DATA_READY
+set_location_assignment PIN_G2 -to FIFO_FULL
+set_location_assignment PIN_B10 -to MOSI[3]
+set_location_assignment PIN_A11 -to MOSI[2]
+set_location_assignment PIN_A7 -to MOSI[1]
+set_location_assignment PIN_B6 -to MOSI[0]
+set_location_assignment PIN_A2 -to RST
+set_location_assignment PIN_C11 -to RST_SLV
+set_location_assignment PIN_A12 -to SCLK
+set_location_assignment PIN_B14 -to TRG_SLV
+set_location_assignment PIN_H1 -to NI_DIGITAL_IN[0]
+set_location_assignment PIN_E2 -to NI_DIGITAL_IN[6]
+set_location_assignment PIN_G1 -to NI_DIGITAL_IN[2]
+set_location_assignment PIN_J2 -to NI_DIGITAL_IN[1]
+set_location_assignment PIN_K2 -to NI_DIGITAL_IN[3]
+set_location_assignment PIN_F2 -to NI_DIGITAL_IN[4]
+set_location_assignment PIN_L1 -to NI_DIGITAL_IN[5]
+set_location_assignment PIN_M1 -to NI_DIGITAL_IN[7]
+set_location_assignment PIN_C9 -to CS_b_O
+set_location_assignment PIN_H16 -to CS_b_U
+set_location_assignment PIN_A4 -to CS_b_Z_O
+set_location_assignment PIN_N2 -to DATA_OUT_A[0]
+set_location_assignment PIN_R4 -to DATA_OUT_A[1]
+set_location_assignment PIN_T4 -to DATA_OUT_A[2]
+set_location_assignment PIN_R5 -to DATA_OUT_A[3]
+set_location_assignment PIN_T5 -to DATA_OUT_A[4]
+set_location_assignment PIN_R6 -to DATA_OUT_A[5]
+set_location_assignment PIN_R7 -to DATA_OUT_A[6]
+set_location_assignment PIN_T7 -to DATA_OUT_A[7]
+set_location_assignment PIN_R8 -to DATA_OUT_A[8]
+set_location_assignment PIN_T8 -to DATA_OUT_A[9]
+set_location_assignment PIN_T10 -to DATA_OUT_B[0]
+set_location_assignment PIN_R10 -to DATA_OUT_B[1]
+set_location_assignment PIN_T9 -to DATA_OUT_B[2]
+set_location_assignment PIN_R9 -to DATA_OUT_B[3]
+set_location_assignment PIN_E1 -to DATA_OUT_B[4]
+set_location_assignment PIN_D2 -to DATA_OUT_B[5]
+set_location_assignment PIN_D1 -to DATA_OUT_B[6]
+set_location_assignment PIN_R13 -to DATA_OUT_B[7]
+set_location_assignment PIN_M2 -to DATA_OUT_B[8]
+set_location_assignment PIN_N1 -to DATA_OUT_B[9]
+set_location_assignment PIN_H2 -to DATA_OUT_CLK
+set_location_assignment PIN_A13 -to MISO_O[0]
+set_location_assignment PIN_B13 -to MISO_O[1]
+set_location_assignment PIN_C6 -to MISO_O[2]
+set_location_assignment PIN_B8 -to MISO_O[3]
+set_location_assignment PIN_A9 -to MISO_O[4]
+set_location_assignment PIN_B3 -to MISO_O[5]
+set_location_assignment PIN_B5 -to MISO_O[6]
+set_location_assignment PIN_C5 -to MISO_O[7]
+set_location_assignment PIN_L14 -to MISO_U[0]
+set_location_assignment PIN_L15 -to MISO_U[1]
+set_location_assignment PIN_J14 -to MISO_U[2]
+set_location_assignment PIN_K16 -to MISO_U[3]
+set_location_assignment PIN_G14 -to MISO_U[4]
+set_location_assignment PIN_F14 -to MISO_U[5]
+set_location_assignment PIN_E15 -to MISO_U[6]
+set_location_assignment PIN_E16 -to MISO_U[7]
+set_location_assignment PIN_B4 -to MISO_Z_O
+set_location_assignment PIN_B12 -to MOSI_O[0]
+set_location_assignment PIN_C12 -to MOSI_O[1]
+set_location_assignment PIN_B7 -to MOSI_O[2]
+set_location_assignment PIN_C7 -to MOSI_O[3]
+set_location_assignment PIN_A10 -to MOSI_O[4]
+set_location_assignment PIN_A5 -to MOSI_O[5]
+set_location_assignment PIN_C4 -to MOSI_O[6]
+set_location_assignment PIN_A6 -to MOSI_O[7]
+set_location_assignment PIN_M15 -to MOSI_U[0]
+set_location_assignment PIN_J16 -to MOSI_U[3]
+set_location_assignment PIN_H15 -to MOSI_U[4]
+set_location_assignment PIN_E14 -to MOSI_U[5]
+set_location_assignment PIN_F16 -to MOSI_U[6]
+set_location_assignment PIN_M16 -to MOSI_U[1]
+set_location_assignment PIN_K15 -to MOSI_U[2]
+set_location_assignment PIN_D14 -to MOSI_U[7]
+set_location_assignment PIN_C8 -to MOSI_Z_O
+set_location_assignment PIN_J1 -to NI_CLK
+set_location_assignment PIN_B9 -to SCLK_O
+set_location_assignment PIN_G15 -to SCLK_U
+set_location_assignment PIN_A8 -to SCLK_Z_O
+set_location_assignment PIN_C13 -to SEL_O[0]
+set_location_assignment PIN_R11 -to SYNC
+set_location_assignment PIN_R12 -to DATA_OUT_TRIG_OUT

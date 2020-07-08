@@ -14,7 +14,9 @@ module GALVANI_STIM (
 	output wire CSb,
 	output wire RST_SLV,
 	output wire TRG_SLV,
-	output wire	[3:0] MOSI
+	output wire	[3:0] MOSI,
+	
+	output reg [127:0] trig_out
 );
 	
 	wire RST_CLK;
@@ -49,23 +51,18 @@ module GALVANI_STIM (
 		.RST(RST_CLK),
 		.CLK_DIV(CLK_DIV)
 	);
-
-/*
-	INPUT_GEN INPUT_GEN_4MODULES(
-		.CLK(CLK_DIV),
-		.RST(RST),
-		.TX_START(TX_START),
 	
-		.MODE(MODE),
-		.BIAS_SEL(BIAS_SEL),
-		.BIAS_AMP(BIAS_AMP),
-		.ADDR(ADDR),
-		.AMP0(AMP0),
-		.AMP1(AMP1),
-		.AMP2(AMP2),
-		.AMP3(AMP3)	
-	);
-*/
+	always@(negedge CLK_DIV) begin
+		if (!RST) begin
+			trig_out <= 128'h0;
+		end else begin
+			trig_out[ADDR] <= AMP0 != 7'h0;
+			trig_out[ADDR+32] <= AMP1 != 7'h0;
+			trig_out[ADDR+64] <= AMP2 != 7'h0;
+			trig_out[ADDR+96] <= AMP3 != 7'h0;
+		end
+	end
+
 	INPUT_RECV INPUT_RECV_4MODULES(
 		.CLK(CLK_DIV),
 		.RST(RST),
